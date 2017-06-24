@@ -61,12 +61,12 @@ class StudentsFileStruct {
 		fstream hashIO;
 		fstream DBIO;
 		
-		int hashTablePrefix;
+		
 		//이위로 새로짜는 코드 
 		int testNum = 0;
 		
 		int studentNum; //student number
-		
+		int hashTablePrefix;
 		//int hashTablePrefix; //hashTable's prefix
 		StudentData *studentsData; //all data recods input
 		vector <HashData> hashNode; // hashNodes is vector .. table type
@@ -88,9 +88,9 @@ class StudentsFileStruct {
 			hashIO.open("Students.hash", ios::in | ios::out | ostream::binary);
 			
 			hashIO.seekp(0);
-			hashTablePrefix = 0;
+			int firstHashTablePrefix = 0;
 			int hashPointBlockNum = 0;
-			hashIO.write((char*)(&hashTablePrefix), sizeof(hashTablePrefix));
+			hashIO.write((char*)(&firstHashTablePrefix), sizeof(firstHashTablePrefix));
 			hashIO.write((char*)(&hashPointBlockNum), sizeof(hashPointBlockNum));
 			
 			DBIO_temp.open("Student.DB", ios::out | ostream::binary);
@@ -104,7 +104,7 @@ class StudentsFileStruct {
 		}
 		
 		void readStudTableAndUpdateFile() { //자료들을 한줄씩 읽음 
-			ifstream readStudFile("sampleData.csv");
+			ifstream readStudFile("sampleData5.csv");
 			//input student number by using getline
 			string tmp_studentNum;
 			getline(readStudFile, tmp_studentNum, '\n');
@@ -126,9 +126,11 @@ class StudentsFileStruct {
 				currentStudData.studentID = atoi(tmp_studentID.c_str());
 				currentStudData.score = atof(tmp_score.c_str());
 				currentStudData.advisorID = atoi(tmp_advisorID.c_str());
+				
 				hashIO.clear();
 				hashIO.seekg(0);
 				hashIO.read((char*)(&useHashingPrefix), sizeof(useHashingPrefix));
+			
 				//useHashingPrefix = useHashingPrefix;
 				
 				useHashingValue = findHashValue(currentStudData.studentID, useHashingPrefix);
@@ -228,7 +230,7 @@ class StudentsFileStruct {
 				//cout << testNum << " ";
 				//testNum++;
 			} else {
-				
+				solutionOverflow(currentStudData, thisBlockNumber);
 			}
 		}
 		
@@ -241,7 +243,8 @@ class StudentsFileStruct {
 			DBIO.seekg((thisBlockNumber + 1) * 4096 - dataSize);
 			
 			DBIO.read((char*)(&isNull), sizeof(isNull));
-			if(isNull == NULL) {
+			
+			if(isNull == NULL || DBIO.tellg() == -1) {
 				isOverflow = false;
 			}
 			/*for(int i = 0; i < 4096; i += dataSize) {
@@ -262,10 +265,11 @@ class StudentsFileStruct {
 			for(int i = 0; i < 4096; i += sizeof(currentStudData)) {
 			//for(int i = 0; i < 4096; i ++) {
 				DBIO.clear();
-				DBIO.seekg(thisBlockNumber * 4096 + i);
+				DBIO.seekg((thisBlockNumber * 4096) + i);
 				DBIO.read((char*)(&isNull), sizeof(isNull));
 				//cout << isNull << "구분자";
-				if(isNull == NULL) { 
+				
+				if(isNull == NULL || DBIO.tellg() == -1) {
 					inputLocation = i;
 					//cout << i << " ";
 					break;
@@ -283,7 +287,129 @@ class StudentsFileStruct {
 			
 		}
 		
-		//이위로 새로짜는 코드 
+		void solutionOverflow(StudentData currentStudData, int thisBlockNumber) {
+			//hashtable에서 현재 blocknumber와 같은것 찾음 - 함수만들기 
+			int blockPointCount = findBlockPointCount(thisBlockNumber);
+			//cout << blockPointCount << " ";
+			//1개면 hashtable을 두배로 늘린뒤 데이터를 다 들고와서 hashPrefix재설정후(prefix1증가) 
+			//block을 하나 더 만들어서 재분배시킨뒤에 hashtable의 값을 block에 따라 바꿔주고
+			//다시 넣을 곳의 block의 overflow를 확인후(재귀호출) 현재 데이터 삽입
+			if(blockPointCount == 1) {
+				reallocationOnePoint(currentStudData, thisBlockNumber); 
+			} else {
+				//2개, 4개, 8개 ...면 hashtable을 나눌 필요없이 hashPrefix를 적절히 보고  block을 늘릴 필요없이 데이터를 다 들고와서
+				//재분배시킨뒤에 hashtable의 값을 block에 따라 바꿔주고
+				//다시 넣을 곳의 block의 overflow확인후 (재귀호출 이때는 point가 한개가 될수있음) 현재 데이터 삽입 
+				reallocationMultiPoint(currentStudData, thisBlockNumber);
+			}
+			
+			
+		}
+		
+		int findBlockPointCount(int thisBlockNumber) {
+			int blockPointCount = 0;
+			int useHashingPrefix;
+			
+			hashIO.clear();
+			hashIO.seekg(0);
+			hashIO.read((char*)(&useHashingPrefix), sizeof(useHashingPrefix));
+			
+			//useHasingPrefix가 2의 지수승번으로  검사하면됨 
+			int tempBlockNum;
+			int howManyHashBlock = calculatePow(useHashingPrefix);
+			for(int i = 0; i < howManyHashBlock; i++) {
+				hashIO.read((char*)(&tempBlockNum), sizeof(tempBlockNum));
+				if(tempBlockNum == thisBlockNumber) {
+					blockPointCount++;
+				}
+			}
+			
+			return blockPointCount;
+		}
+		
+		int calculatePow(int twoIndex) {
+			int tempTwoIndex = twoIndex;
+			int powResult = 1;
+			while(tempTwoIndex != 0) {
+				powResult *= 2;
+				tempTwoIndex --;
+			}
+			
+			return powResult;
+		}
+		
+		void reallocationOnePoint(StudentData currentStudData, int thisBlockNumber) {
+			//1개면 hashtable을 두배로 늘린뒤 데이터를 다 들고와서 hashPrefix재설정후(prefix1증가) 
+			//block을 하나 더 만들어서(실재로 더 만들 필요는 없음 맨끝4k에 추가 관련 함수 필요) 재분배시킨뒤에 hashtable의 값을 block에 따라 바꿔주고
+			//다시 넣을 곳의 block의 overflow를 확인후(재귀호출) 현재 데이터 삽입
+			int finalBlockNum;
+			finalBlockNum = findFinalBlockNum();
+			cout << finalBlockNum;
+			makeHashTableDouble();
+			 
+			
+			
+		}
+		
+		void makeHashTableDouble() {
+			int beforeUseHashingPrefix;
+			int afterUseHasingPrefix;
+			hashIO.clear();
+			hashIO.seekg(0);
+			hashIO.read((char*)(&beforeUseHashingPrefix), sizeof(beforeUseHashingPrefix));
+			
+			int howManyHashBlock = calculatePow(beforeUseHashingPrefix);
+			hashIO.seekp(4 + howManyHashBlock * 4);
+			int tempHashTableNum;
+			for(int i = 0; i < howManyHashBlock; i++) {
+				hashIO.read((char*)(&tempHashTableNum), sizeof(tempHashTableNum));
+				hashIO.write((char*)(&tempHashTableNum), sizeof(tempHashTableNum));
+			}
+			
+			hashIO.clear();
+			afterUseHasingPrefix = beforeUseHashingPrefix + 1;
+			hashIO.seekp(0);
+			hashIO.write((char*)(&afterUseHasingPrefix), sizeof(afterUseHasingPrefix));
+			
+			/*hashIO.clear();
+			int temptest;
+			hashIO.seekg(0);
+			hashIO.read((char*)(&temptest), sizeof(temptest));
+			cout << temptest << " ";
+			cout << hashIO.tellg();*/
+			
+		}
+		
+		int findFinalBlockNum() {
+			int finalBlockNum = 0;
+			int useHashingPrefix;
+			
+			hashIO.clear();
+			hashIO.seekg(0);
+			hashIO.read((char*)(&useHashingPrefix), sizeof(useHashingPrefix));
+			
+			int howManyHashBlock = calculatePow(useHashingPrefix);
+			
+			int tempHashTableNum;
+			for(int i = 0; i < howManyHashBlock; i++) {
+				hashIO.read((char*)(&tempHashTableNum), sizeof(tempHashTableNum));
+				if(finalBlockNum < tempHashTableNum) {
+					finalBlockNum = tempHashTableNum;
+				}
+			}
+			
+			return finalBlockNum; 
+		}
+		
+		void reallocationMultiPoint(StudentData currentStudData, int thisBlockNumber) {
+			//2개, 4개, 8개 ...면 hashtable을 나눌 필요없이 hashPrefix를 적절히 보고  block을 늘릴 필요없이 데이터를 다 들고와서
+			//재분배시킨뒤에 hashtable의 값을 block에 따라 바꿔주고
+			//다시 넣을 곳의 block의 overflow확인후 (재귀호출 이때는 point가 한개가 될수있음) 현재 데이터 삽입 
+		}
+		
+		//이위로 새로짜는 코드 -----------------------------------------------------------------------------------------------------
+		
+		
 		
 		//read all record in studentsData[]
 		void readStudentTable() {
