@@ -10,8 +10,8 @@
 using namespace std;
 /* run this program using the console pauser or add your own getch, system("pause") or input loop */
 
-#define M 513   
-#define TR 500 // size of stack
+#define M 513  // 홀수 차수 생성 
+#define TR 500 // 스택의 크기
 
 //student's dataStruct
 typedef struct InputData {
@@ -32,7 +32,7 @@ typedef struct Blockform {
 	vector <StudentData> studentData;
 }BlockData;
 
-typedef struct NodeData{ // will be stored in b+tree
+typedef struct NodeData{
 	float score;
 	int bNum;
 }nData;
@@ -49,15 +49,25 @@ class Bptree{
 	public:
 		bool insertItem(nData* k);		// Key insert
 		void kSearch(int k);
-		void idxOut(); // make idx 
+		nData* getLeaves(int n); // get n leaf nodes 
 	private:
 		node* root;
 };
 
 class StudentsFileStruct {
 	private:
+		
+		int studNum; 
+		fstream hashIO;
+		fstream DBIO;
+		
+		int hashTablePrefix;
+		//이위로 새로짜는 코드 
+		int testNum = 0;
+		
 		int studentNum; //student number
-		int hashTablePrefix; //hashTable's prefix
+		
+		//int hashTablePrefix; //hashTable's prefix
 		StudentData *studentsData; //all data recods input
 		vector <HashData> hashNode; // hashNodes is vector .. table type
 		vector <HashData>::iterator hash_iter;
@@ -67,10 +77,217 @@ class StudentsFileStruct {
 		nData *nodeData;
 		
 	public:
+		void fileHashAndDBOpen() {
+			
+			ofstream hashIO_temp;
+			ofstream DBIO_temp;
+			
+			hashIO_temp.open("Students.hash", ios::out | ostream::binary);
+			hashIO_temp.close();
+				
+			hashIO.open("Students.hash", ios::in | ios::out | ostream::binary);
+			
+			hashIO.seekp(0);
+			hashTablePrefix = 0;
+			int hashPointBlockNum = 0;
+			hashIO.write((char*)(&hashTablePrefix), sizeof(hashTablePrefix));
+			hashIO.write((char*)(&hashPointBlockNum), sizeof(hashPointBlockNum));
+			
+			DBIO_temp.open("Student.DB", ios::out | ostream::binary);
+			DBIO_temp.close();
+			
+			DBIO.open("Student.DB", ios::in | ios::out | ostream::binary);
+			
+			//fo.write((char*)(&(blockNode[i].studentData[j].name)), sizeof(blockNode[i].studentData[j].name));
+			//char a[20];
+			//fi.read((char*)(&a), sizeof(a));
+		}
+		
+		void readStudTableAndUpdateFile() { //자료들을 한줄씩 읽음 
+			ifstream readStudFile("sampleData.csv");
+			//input student number by using getline
+			string tmp_studentNum;
+			getline(readStudFile, tmp_studentNum, '\n');
+			studentNum = atoi(tmp_studentNum.c_str());
+			
+			StudentData currentStudData;
+			int useHashingValue;
+			int useHashingPrefix;
+			int thisBlockNumber;
+			//input all studentData by using getline
+			
+			string tmp_name, tmp_studentID, tmp_score, tmp_advisorID;
+			while(getline(readStudFile, tmp_name,',')&&getline(readStudFile, tmp_studentID,',')&&getline(readStudFile, tmp_score,',')&&getline(readStudFile,tmp_advisorID,'\n')) {
+				strcpy(currentStudData.name,tmp_name.c_str());
+				if(tmp_name.length() >= 20) {
+					string tmp_re_name = tmp_name.substr(0, 19);
+					strcpy(currentStudData.name,tmp_re_name.c_str());
+				}
+				currentStudData.studentID = atoi(tmp_studentID.c_str());
+				currentStudData.score = atof(tmp_score.c_str());
+				currentStudData.advisorID = atoi(tmp_advisorID.c_str());
+				hashIO.clear();
+				hashIO.seekg(0);
+				hashIO.read((char*)(&useHashingPrefix), sizeof(useHashingPrefix));
+				//useHashingPrefix = useHashingPrefix;
+				
+				useHashingValue = findHashValue(currentStudData.studentID, useHashingPrefix);
+				thisBlockNumber = findBlockNumber(useHashingValue);
+				
+				inputDataInDB(currentStudData, thisBlockNumber);
+				//cout << useHashingValue << " ";
+				//studentTree.insertItem(studentsData+dataLocate);
+				//cout << studentsData[dataLocate].name << "," << studentsData[dataLocate].studentID << "," << studentsData[dataLocate].score << "," << studentsData[dataLocate].advisorID << endl;
+				
+			}
+			
+			readStudFile.close();
+			hashIO.close();
+			DBIO.close();
+			
+		}
+		
+		int findHashValue(unsigned int currentStudData_ID, int useHashingPrefix) { // 헤쉬테이블의 prefix이용 단, hashvalue가 "",0인경우는 같은 형식으로 취급 
+			//hash파일과 DB파일은 계속 열려있어야함, hash파일과 DB파일이 update해주어야 함
+			string hashingValue_string = hashingFunction(currentStudData_ID);
+			//useHashingPrefix = 1;
+			if(hashingValue_string.length() < useHashingPrefix) {
+				while(hashingValue_string.length() != useHashingPrefix) {
+					hashingValue_string = "0" + hashingValue_string;
+				}
+			}
+			string useHashingValue_string;
+			int useHashingValue_int;
+			
+			if(!hashingValue_string.compare("") == 0) {
+				useHashingValue_string = hashingValue_string.substr(hashingValue_string.length() - useHashingPrefix, useHashingPrefix);
+				useHashingValue_int = binaryToDecimal(useHashingValue_string);
+			} else {
+				useHashingValue_int = -1;
+			}
+			
+			//prefix보고 substring추출
+			 
+			/*int i = 0;
+			hashIO.seekp(0);
+			hashIO.write((char*)(&i), sizeof(i));
+			*/
+			/*int j;
+			hashIO.seekg(0);
+			hashIO.read((char*)(&j), sizeof(j));
+			
+			cout << j << " ";*/
+			
+			//cout << currentStudData.name << endl;
+			
+			return useHashingValue_int;
+		}
+		
+		string hashingFunction(unsigned int studentID) {
+			
+			if(studentID == 0) {
+				return "0";
+			} else if (studentID== 1) {
+				return "1";
+			} else if (studentID % 2 == 0) {
+				return hashingFunction(studentID / 2) + "0";
+			} else {
+				return hashingFunction(studentID / 2) + "1";
+			}
+			
+		}
+		
+		int binaryToDecimal(string useHashingValue_string) {
+			int useHashingValue_int = 0, pow = 1;
+			for(int i = useHashingValue_string.length() - 1 ;i >= 0 ; i--, pow <<= 1) {
+				useHashingValue_int += (useHashingValue_string[i] - '0') * pow;
+			}
+			return useHashingValue_int;
+		}
+		
+		int findBlockNumber(int useHashingValue) {
+			int thisBlockNumber = 0;
+			
+			if(useHashingValue == -1) {
+				useHashingValue == 0;
+			}
+			hashIO.clear();
+			hashIO.seekg(4 + (4 * useHashingValue));
+			hashIO.read((char*)(&thisBlockNumber), sizeof(thisBlockNumber));
+			//cout << thisBlockNumber;
+			return thisBlockNumber;
+		}
+		
+		void inputDataInDB(StudentData currentStudData, int thisBlockNumber) {
+			//cout << currentStudData.name << " ";
+			//cout << sizeof(currentStudData) << " ";
+			bool isOverflow = overflowCheck(thisBlockNumber, sizeof(currentStudData));
+			
+			if(!isOverflow) {
+				inputData(currentStudData, thisBlockNumber);
+				//cout << testNum << " ";
+				//testNum++;
+			} else {
+				
+			}
+		}
+		
+		bool overflowCheck(int thisBlockNumber, int dataSize) {
+			
+			bool isOverflow = true;
+			
+			char isNull;
+			DBIO.clear();
+			DBIO.seekg((thisBlockNumber + 1) * 4096 - dataSize);
+			
+			DBIO.read((char*)(&isNull), sizeof(isNull));
+			if(isNull == NULL) {
+				isOverflow = false;
+			}
+			/*for(int i = 0; i < 4096; i += dataSize) {
+				hashIO.read((char*)(&isNull), sizeof(isNull));
+				if(isNull == NULL) {
+					isOverflow = true;
+					break;
+				}
+			}*/
+			
+			return isOverflow;
+		}
+		
+		void inputData(StudentData currentStudData, int thisBlockNumber) {			
+			char isNull;
+			int inputLocation = 0;
+			
+			for(int i = 0; i < 4096; i += sizeof(currentStudData)) {
+			//for(int i = 0; i < 4096; i ++) {
+				DBIO.clear();
+				DBIO.seekg(thisBlockNumber * 4096 + i);
+				DBIO.read((char*)(&isNull), sizeof(isNull));
+				//cout << isNull << "구분자";
+				if(isNull == NULL) { 
+					inputLocation = i;
+					//cout << i << " ";
+					break;
+				}
+			}
+			
+			//cout <<
+			DBIO.clear();
+			DBIO.seekp(thisBlockNumber * 4096 + inputLocation);
+			//cout << currentStudData.name << " ";
+			DBIO.write((char*)(&currentStudData.name), sizeof(currentStudData.name));
+			DBIO.write((char*)(&currentStudData.studentID), sizeof(currentStudData.studentID));
+			DBIO.write((char*)(&currentStudData.score), sizeof(currentStudData.score));
+			DBIO.write((char*)(&currentStudData.advisorID), sizeof(currentStudData.advisorID));
+			
+		}
+		
+		//이위로 새로짜는 코드 
 		
 		//read all record in studentsData[]
 		void readStudentTable() {
-			ifstream readStudFile("SampleData.csv");
+			ifstream readStudFile("sampleData.csv");
 			
 			//input student number by using getline
 			string tmp_studentNum;
@@ -322,11 +539,10 @@ class StudentsFileStruct {
 						}
 						
 						// hashpointer realloction
-						
-						//int changeHashPointNum = hashPointerNum / 2;
+						int changeHashPointNum = hashPointerNum / 2;
 						for(int k = 0; k < (hashPointerNum/2); k++) {
 							hashNode[useHashNode[k*2 + 1]].pointBlockNum = endBlockLocate;
-							//changeHashPointNum ++;
+							changeHashPointNum ++;
 						}
 							
 						endBlockLocate ++;
@@ -358,6 +574,8 @@ class StudentsFileStruct {
 					fo.write((char*)(&(blockNode[i].studentData[j].studentID)), sizeof(blockNode[i].studentData[j].studentID));
 					fo.write((char*)(&(blockNode[i].studentData[j].score)), sizeof(blockNode[i].studentData[j].score));
 					fo.write((char*)(&(blockNode[i].studentData[j].advisorID)), sizeof(blockNode[i].studentData[j].advisorID));
+					
+					//if(j==0)break;
 				
 					/*fo << blockNode[i].studentData[j].name;
 					fo << blockNode[i].studentData[j].studentID;
@@ -366,24 +584,42 @@ class StudentsFileStruct {
 					
 					j++;
 				}
+				//if(i == 0) break;
 				i ++;
 			}
 			
 			fo.close();		
 			
 			ifstream fi;
-			fi.open("Students.DB", ios::in | ostream::binary);
+			fi.open("Student.DB", ios::in | ostream::binary);
 			char a[20];
 			unsigned int b;
 			float c;
 			unsigned int d;
 			
-			fi.read((char*)(&a), sizeof(20));
-			fi.read((char*)(&b), sizeof(b));
-			fi.read((char*)(&c), sizeof(c));
-			fi.read((char*)(&d), sizeof(d));
-			cout << a;
-			cout <<b <<c<<d<<endl;	
+			fi.seekg(4096);
+			
+			for(int q = 0; q < 4096; q += 32) {
+				fi.read((char*)(&a), sizeof(a));
+				if(a[0] == NULL) {
+					break;
+				}
+				fi.read((char*)(&b), sizeof(b));
+				fi.read((char*)(&c), sizeof(c));
+				fi.read((char*)(&d), sizeof(d));
+				for(int w = 0; w < 20; w ++) {
+					cout << a[w];
+				}
+				cout << endl;
+				cout <<b << endl;
+				cout <<c << endl;
+				cout << d <<endl;
+				cout << endl;
+			}
+			
+			//fi.seekg(4096 * i);
+			
+			
 			
 			fi.close();
 			
@@ -429,7 +665,7 @@ class StudentsFileStruct {
 			fi.close();
 		}
 		
-		void make_B_plusTree() {//insert all data
+		void make_B_plusTree() {
 			int k = 0;
 			nodeData = new nData[studentNum];
 			for(int i = 0; i < blockNode.size(); i++){
@@ -442,7 +678,7 @@ class StudentsFileStruct {
 			}
 		}
 		
-		void kthNodePrint() {//find kth leaf node
+		void kthNodePrint() {
 			int k;
 			cout << "what is k? : ";
 			cin >> k;
@@ -455,9 +691,28 @@ class StudentsFileStruct {
 			}
 		}
 		
-		void idxOut(){//make idx file
-  			studentTree.idxOut();
-		
+		void idxOut(){
+  			ofstream fo;
+			nData* leafNodes;
+			char comma = ',';
+			char enter = '\n';
+			leafNodes = studentTree.getLeaves(studentNum);
+ 			fo.open("Student_score.idx", ostream::binary);  
+  			if (!fo) {   // if(fo.fail())
+    			cerr << "idx open failed.." << endl;
+    			exit(1);
+  			}
+
+  			for (int i = 0; i < studentNum; i++){ //save leaf nodes
+   	 			//fo.write((char*)&i, sizeof(int));
+  				fo.write((char*)&(leafNodes[i].score),sizeof(float));
+				fo.write((char*)&comma,sizeof(char));
+				fo.write((char*)&(leafNodes[i].bNum),sizeof(int));
+				fo.write((char*)&enter,sizeof(char));			
+			}
+			fo.close();
+
+  
 		}
 	
 	
@@ -506,7 +761,8 @@ bool Bptree::insertItem(nData* k)
 			break;
 		p = p->branch[j];
 		i++;
-	}					 
+	}						// 이 루프에서 나오면 p는 Key값이 삽일될 노드. 
+
 	
 	// start insert 
 	Key = k->score;
@@ -533,7 +789,7 @@ bool Bptree::insertItem(nData* k)
 			node* nodeBranch[M+1];
 			node* newNode;
 			int j, j2;
-			newNode = new node();
+			newNode = (node*)malloc(sizeof(node));
 			
 			nodeBranch[0] = p->branch[0];
 			for (j=0, j2=0; j<M; j++, j2++)		// save value temporary
@@ -584,7 +840,7 @@ bool Bptree::insertItem(nData* k)
 	}
 	if (i == -1)	// root overflow
 	{
-		root = new node();
+		root = (node*)malloc(sizeof(node));
 		root->count = 1;
 		root->branch[0] = trace[0];
 		root->branch[1] = Right;
@@ -597,38 +853,42 @@ bool Bptree::insertItem(nData* k)
 
 
 void Bptree::kSearch(int k){
-	ifstream fi;
- 	fi.open("Student_score.idx", ifstream::binary); 
-  	if (!fi) { 
-    	cerr << "idx open failed.." << endl;
-    	exit(1);
-  	}
-  	fi.seekg(4096*k);//move to kth node
-  	
-  	float s;
-  	int b;
-  	
-  	while(true){
-  		fi.read((char*)&s,sizeof(float));
-		fi.read((char*)&b,sizeof(int));
-		if(0 >= s || 4.5 < s || fi.eof()){
-			break;
+	node* p = root;
+	int nodeNum = 0;
+
+
+	if (p != NULL)
+	{	
+		while (true)	// go to leaf node
+		{
+			if (p->count/M == 1)
+				break;
+			p = p->branch[0];
 		}
-		cout << "(" << s << " , " << b << ")" << endl;
+		cout << "(score,block number)" << endl;				
+		while (p != NULL)
+		{
+			for (int j=0; j<p->count%M; j++)
+			{
+				if(nodeNum == k){
+					cout << "(" << ((nData*)p->branch[j+1])->score << " , " << ((nData*)p->branch[j+1])-> bNum << ")" << endl;
+					
+				}
+			}
+			nodeNum++;
+			if(nodeNum == k+1)
+				break;
+			p = p->branch[0];
+		}
+		if(p == NULL){
+			cout << "range over!" << endl;
+		}
 	}
-  	
-  	
-	fi.close();
 }
 
-void Bptree::idxOut(){
-	ofstream fo; 
- 	fo.open("Student_score.idx", ostream::binary);
-  	if (!fo) { 
-    	cerr << "idx open failed.." << endl;
-    	exit(1);
-  	}
-	
+nData* Bptree::getLeaves(int n){
+	nData* leaves;
+	leaves = new nData[n];
 	int i = 0;
 	node* p = root;
 	if (p != NULL)
@@ -643,29 +903,31 @@ void Bptree::idxOut(){
 		{
 			for (int j=0; j<p->count%M; j++)
 			{
-				fo.write((char*)&(((nData*)p->branch[j+1])->score),sizeof(float));
-				fo.write((char*)&(((nData*)p->branch[j+1])->bNum),sizeof(int));
+				{
+					leaves[i].score = ((nData*)p->branch[j+1])->score;
+					leaves[i].bNum=((nData*)p->branch[j+1])-> bNum;
+					i++;
+				}
 			}
-			i++;
-			fo.seekp(4096*i); // move to next block
 			p = p->branch[0];
 		}
 		
 	}
-	fo.close();
-	
+	return leaves;
 }
 
 
 int main(int argc, char** argv) {
 	StudentsFileStruct studentsFS;
-	studentsFS.readStudentTable();
+	studentsFS.fileHashAndDBOpen();
+	studentsFS.readStudTableAndUpdateFile();
+	/*studentsFS.readStudentTable();
 	studentsFS.calculate_DB_HashTable();
 	studentsFS.writeStudentDB();
 	studentsFS.writeHashTable();
 	studentsFS.hashTablePrint();
 	studentsFS.make_B_plusTree();
-	studentsFS.idxOut();
 	studentsFS.kthNodePrint();
+	studentsFS.idxOut();*/
 	return 0;
 }
