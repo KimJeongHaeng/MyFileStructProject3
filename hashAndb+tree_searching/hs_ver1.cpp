@@ -10,9 +10,6 @@
 using namespace std;
 /* run this program using the console pauser or add your own getch, system("pause") or input loop */
 
-#define M 513  // 홀수 차수 생성 
-#define TR 500 // 스택의 크기
-
 //student's dataStruct
 typedef struct InputData {
 	char name[20];
@@ -27,28 +24,6 @@ typedef struct InputProData {
 	int salary;
 }ProfessorData;
 
-typedef struct NodeData{
-	float score;
-	int bNum;
-}nData;
-
-typedef struct Node
-{
-	int count;		// number of key	
-	float Key[M-1];			 // Key 
-	struct Node* branch[M];  // next node 
-	StudentData* data;
-} node;
-
-class Bptree{
-	public:
-		bool insertItem(nData* k);		// Key insert
-		void kSearch(int k);
-		nData* getLeaves(int n); // get n leaf nodes 
-	private:
-		node* root;
-};
-
 class StuAndProFileStruct {
 	private:
 		int studentNum;
@@ -60,11 +35,6 @@ class StuAndProFileStruct {
 		fstream hashIOPro;
 		fstream DBIOPro;
 		vector <ProfessorData> tempProfessorDatas;
-		//int testNum = 0;
-		//이위로 새로짜는 코드 
-		
-		Bptree studentTree;
-		nData *nodeData;
 		
 	public:
 		void fileHashAndDBOpen() {
@@ -124,9 +94,7 @@ class StuAndProFileStruct {
 				thisBlockNumber = findBlockNumber(useHashingValue);
 				
 				inputDataInDB(currentStudData, thisBlockNumber);
-				//cout << useHashingValue << " ";
-				//studentTree.insertItem(studentsData+dataLocate);
-				//cout << studentsData[dataLocate].name << "," << studentsData[dataLocate].studentID << "," << studentsData[dataLocate].score << "," << studentsData[dataLocate].advisorID << endl;
+				
 				
 			}
 			hashTablePrint();
@@ -155,20 +123,6 @@ class StuAndProFileStruct {
 			} else {
 				useHashingValue_int = -1;
 			}
-			
-			//prefix보고 substring추출
-			 
-			/*int i = 0;
-			hashIO.seekp(0);
-			hashIO.write((char*)(&i), sizeof(i));
-			*/
-			/*int j;
-			hashIO.seekg(0);
-			hashIO.read((char*)(&j), sizeof(j));
-			
-			cout << j << " ";*/
-			
-			//cout << currentStudData.name << endl;
 			
 			return useHashingValue_int;
 		}
@@ -215,8 +169,7 @@ class StuAndProFileStruct {
 			
 			if(!isOverflow) {
 				inputData(currentStudData, thisBlockNumber);
-				//cout << testNum << " ";
-				//testNum++;
+				
 			} else {
 				solutionOverflow(currentStudData, thisBlockNumber);
 			}
@@ -235,13 +188,6 @@ class StuAndProFileStruct {
 			if(isNull == NULL || DBIO.tellg() == -1) {
 				isOverflow = false;
 			}
-			/*for(int i = 0; i < 4096; i += dataSize) {
-				hashIO.read((char*)(&isNull), sizeof(isNull));
-				if(isNull == NULL) {
-					isOverflow = true;
-					break;
-				}
-			}*/
 			
 			return isOverflow;
 		}
@@ -258,14 +204,14 @@ class StuAndProFileStruct {
 				
 				if(isNull == NULL || DBIO.tellg() == -1) {
 					inputLocation = i;
-					//cout << i << " ";
+					
 					break;
 				}
 			}
 			
 			DBIO.clear();
 			DBIO.seekp(thisBlockNumber * 4096 + inputLocation);
-			//cout << currentStudData.name << " ";
+			
 			DBIO.write((char*)(&currentStudData.name), sizeof(currentStudData.name));
 			DBIO.write((char*)(&currentStudData.studentID), sizeof(currentStudData.studentID));
 			DBIO.write((char*)(&currentStudData.score), sizeof(currentStudData.score));
@@ -492,11 +438,6 @@ class StuAndProFileStruct {
 				
 			}
 			
-			/*cout << tempStudentDatas[127].name;
-			cout << tempStudentDatas[127].studentID;
-			cout << tempStudentDatas[127].score;
-			cout << tempStudentDatas[127].advisorID;*/
-			
 			
 			int useHashingPrefix;
 			hashIO.clear();
@@ -648,9 +589,6 @@ class StuAndProFileStruct {
 				thisBlockNumber = findBlockNumberPro(useHashingValue);
 				
 				inputDataInDBPro(currentProData, thisBlockNumber);
-				//cout << useHashingValue << " ";
-				//studentTree.insertItem(studentsData+dataLocate);
-				//cout << studentsData[dataLocate].name << "," << studentsData[dataLocate].studentID << "," << studentsData[dataLocate].score << "," << studentsData[dataLocate].advisorID << endl;
 				
 			}
 			hashTablePrintPro();
@@ -675,16 +613,14 @@ class StuAndProFileStruct {
 		}
 		
 		void inputDataInDBPro(ProfessorData currentProData, int thisBlockNumber) {
-			//cout << currentStudData.name << " ";
-			//cout << sizeof(currentStudData) << " ";
+			
 			bool isOverflow = overflowCheckPro(thisBlockNumber, sizeof(currentProData));
 			
 			if(!isOverflow) {
 				inputDataPro(currentProData, thisBlockNumber);
-				//cout << testNum << " ";
-				//testNum++;
+			
 			} else {
-				//testNum = 0;
+				
 				solutionOverflowPro(currentProData, thisBlockNumber);
 			}
 		}
@@ -702,13 +638,6 @@ class StuAndProFileStruct {
 			if(isNull == NULL || DBIOPro.tellg() == -1) {
 				isOverflow = false;
 			}
-			/*for(int i = 0; i < 4096; i += dataSize) {
-				hashIO.read((char*)(&isNull), sizeof(isNull));
-				if(isNull == NULL) {
-					isOverflow = true;
-					break;
-				}
-			}*/
 			
 			return isOverflow;
 		}
@@ -823,7 +752,6 @@ class StuAndProFileStruct {
 			afterUseHasingPrefix = beforeUseHashingPrefix + 1;
 			hashIOPro.seekp(0);
 			hashIOPro.write((char*)(&afterUseHasingPrefix), sizeof(afterUseHasingPrefix));
-		
 			
 			
 		}
@@ -882,8 +810,6 @@ class StuAndProFileStruct {
 				hashIOPro.write((char*)(&increaseFinalBlockNum), sizeof(increaseFinalBlockNum));
 			}
 			
-			//testPrint();
-			//cout << "test \n";
 			
 			
 		}
@@ -897,10 +823,8 @@ class StuAndProFileStruct {
 			finalBlockNum = findFinalBlockNumPro();
 			//cout << finalBlockNum;
 			
-			
 			reallocateBlocksMultiPro(currentProData, thisBlockNumber, finalBlockNum);
 			reallocateHashTablePro(currentProData, thisBlockNumber, finalBlockNum);
-			
 			
 		}
 		
@@ -946,7 +870,7 @@ class StuAndProFileStruct {
 			hashIOPro.read((char*)(&useHashingPrefix), sizeof(useHashingPrefix));
 			
 			int blockPointCount = findBlockPointCountPro(thisBlockNumber);
-			//cout << "포인터겠수" <<blockPointCount << endl;
+		
 			int forRealusedPrefix = -1; //포인터의 개수가 1개면 안빼고 2개면 1빼고 4개면 2빼고 ... 
 			while(blockPointCount != 1) {
 				forRealusedPrefix ++;
@@ -1030,259 +954,11 @@ class StuAndProFileStruct {
 			}*/
 		}
 		
-		//이위로 새로짜는 코드 -----------------------------------------------------------------------------------------------------
-		
-		/*void make_B_plusTree() {
-			int k = 0;
-			nodeData = new nData[studentNum];
-			for(int i = 0; i < blockNode.size(); i++){
-				for(int j=0; j < blockNode[i].studentData.size();j++){
-					nodeData[k].score = blockNode[i].studentData[j].score;
-					nodeData[k].bNum = blockNode[i].thisBlockNum;
-					studentTree.insertItem(nodeData+k);
-					k++;
-				}
-			}
-		}
-		
-		void kthNodePrint() {
-			int k;
-			cout << "what is k? : ";
-			cin >> k;
-			if(k > 0){
-				studentTree.kSearch(k-1);
-			}
-			else{
-				cout << "invalid input!" << endl;
-				kthNodePrint();
-			}
-		}
-		
-		void idxOut(){
-  			ofstream fo;
-			nData* leafNodes;
-			char comma = ',';
-			char enter = '\n';
-			leafNodes = studentTree.getLeaves(studentNum);
- 			fo.open("Student_score.idx", ostream::binary);  
-  			if (!fo) {   // if(fo.fail())
-    			cerr << "idx open failed.." << endl;
-    			exit(1);
-  			}
-
-  			for (int i = 0; i < studentNum; i++){ //save leaf nodes
-   	 			//fo.write((char*)&i, sizeof(int));
-  				fo.write((char*)&(leafNodes[i].score),sizeof(float));
-				fo.write((char*)&comma,sizeof(char));
-				fo.write((char*)&(leafNodes[i].bNum),sizeof(int));
-				fo.write((char*)&enter,sizeof(char));			
-			}
-			fo.close();
-
-  
+		/*void readQueryFile() {
+			
 		}*/
-	
-	
-	
-};
-
-bool Bptree::insertItem(nData* k)
-{
-	
-	node* trace[TR];	// node stack of trace to insert location
-	int dir[TR];		// index stack of trace to insert location
-	float Key;
-	int i=0;				//index of stack			
-
-	node* Right, *p;	//Right: insert node
-						//p: point node that we check
-	Right = (node*)k;
-	p = root;
-	
-
-			
-	if (root == NULL)	//first
-	{
-		root = new node();
-		root->branch[0] = NULL;	//in leafnode: next leaf node
-								//in internal node: next level node
-		root->Key[0] = k->score;
-		root->branch[1] = (node*)k;//next level node
-		root->count = M + 1;
-		return true;
-	}
-
-	while (true)	// go to leaf node
-	{
-		int j;
-		trace[i] = p;
-		for (j=0; j<p->count%M; j++)	//count is not always less than M
-			if (p->Key[j] >= k->score)
-			{
-				dir[i] = j;
-				break;
-			}
-		if (j == p->count%M)
-			dir[i] = p->count%M;
-		if (p->count/M == 1)
-			break;
-		p = p->branch[j];
-		i++;
-	}						// 이 루프에서 나오면 p는 Key값이 삽일될 노드. 
-
-	
-	// start insert 
-	Key = k->score;
-	while (i != -1)
-	{
-		int path = dir[i];
-		p = trace[i];
-		if (p->count%M != M-1)	// no overflow
-		{
-			for (int m=p->count%M; m>path; m--)	// make space 
-			{
-				p->Key[m] = p->Key[m-1];
-				p->branch[m+1] = p->branch[m];
-			}
-			p->Key[path] = Key;		
-			p->branch[path+1] = Right;	
-			p->count++;
-			break;
-		}
-	
-		else	//overflow
-		{
-			float nodeKey[M];
-			node* nodeBranch[M+1];
-			node* newNode;
-			int j, j2;
-			newNode = (node*)malloc(sizeof(node));
-			
-			nodeBranch[0] = p->branch[0];
-			for (j=0, j2=0; j<M; j++, j2++)		// save value temporary
-			{
-				if (j == path)
-				{
-					nodeKey[j] = Key;
-					nodeBranch[j+1] = Right;
-					j++;
-					if (j>=M) 
-						break;
-				}
-				nodeKey[j] = p->Key[j2];
-				nodeBranch[j+1] = p->branch[j2+1];
-			}
-			for (j=0; j<M/2; j++)  //front of middle key
-			{
-				p->Key[j] = nodeKey[j];
-				p->branch[j+1] = nodeBranch[j+1];
-			}
-			newNode->branch[0] = nodeBranch[M/2+1];
-			for (j=0; j<M/2; j++)	//rear of middle key 
-			{
-				newNode->Key[j] = nodeKey[M/2+1+j];
-				newNode->branch[j+1] = nodeBranch[M/2+2+j];
-			}
-
-			if (p->count/M == 1) // leaf node
-			{
-				newNode->branch[0] = p->branch[0];	// link list.
-				p->branch[0] = newNode;				//new node is on the right of p
-				p->Key[M/2] = nodeKey[M/2];			// leaf node also has that upper level value 
-				p->branch[M/2+1] = nodeBranch[M/2+1];
-				p->count = M + M/2 + 1;
-				newNode->count = M + M/2;
-			}
-			else
-			{
-				p->count = M/2;
-				newNode->count = M/2;
-				p->branch[0] = nodeBranch[0];
-			}
-
-			Key = nodeKey[M/2];	// send to upper level 
-			Right = newNode;	// right child node 
-		}
-		i--;//stack index descreate like stack pop
-	}
-	if (i == -1)	// root overflow
-	{
-		root = (node*)malloc(sizeof(node));
-		root->count = 1;
-		root->branch[0] = trace[0];
-		root->branch[1] = Right;
-		root->Key[0] = Key;
-	}
-
-	return true;
-}
-
-
-
-void Bptree::kSearch(int k){
-	node* p = root;
-	int nodeNum = 0;
-
-
-	if (p != NULL)
-	{	
-		while (true)	// go to leaf node
-		{
-			if (p->count/M == 1)
-				break;
-			p = p->branch[0];
-		}
-		cout << "(score,block number)" << endl;				
-		while (p != NULL)
-		{
-			for (int j=0; j<p->count%M; j++)
-			{
-				if(nodeNum == k){
-					cout << "(" << ((nData*)p->branch[j+1])->score << " , " << ((nData*)p->branch[j+1])-> bNum << ")" << endl;
-					
-				}
-			}
-			nodeNum++;
-			if(nodeNum == k+1)
-				break;
-			p = p->branch[0];
-		}
-		if(p == NULL){
-			cout << "range over!" << endl;
-		}
-	}
-}
-
-nData* Bptree::getLeaves(int n){
-	nData* leaves;
-	leaves = new nData[n];
-	int i = 0;
-	node* p = root;
-	if (p != NULL)
-	{	
-		while (true)	// go to leaf node
-		{
-			if (p->count/M == 1)
-				break;
-			p = p->branch[0];
-		}				
-		while (p != NULL)
-		{
-			for (int j=0; j<p->count%M; j++)
-			{
-				{
-					leaves[i].score = ((nData*)p->branch[j+1])->score;
-					leaves[i].bNum=((nData*)p->branch[j+1])-> bNum;
-					i++;
-				}
-			}
-			p = p->branch[0];
-		}
 		
-	}
-	return leaves;
-}
-
+};
 
 int main(int argc, char** argv) {
 	StuAndProFileStruct stuAndProFS;
@@ -1290,11 +966,9 @@ int main(int argc, char** argv) {
 	stuAndProFS.readStudTableAndUpdateFile();
 	stuAndProFS.fileHashAndDBOpenPro();
 	stuAndProFS.readProTableAndUpdateFile();
+	//stuAndProFS.readQueryFile();
 	
 	//일단 query파일을 불러와서 조건에 따라 함수수행 .. match / range/ join
 	 
-	/*studentsFS.make_B_plusTree();
-	studentsFS.kthNodePrint();
-	studentsFS.idxOut();*/
 	return 0;
 }
