@@ -42,10 +42,10 @@ class StuAndProFileStruct {
 			ofstream hashIO_temp;
 			ofstream DBIO_temp;
 			
-			hashIO_temp.open("Students.hash", ios::out | ostream::binary);
+			hashIO_temp.open("Students.hash", ios::out | ios::binary);
 			hashIO_temp.close();
 				
-			hashIO.open("Students.hash", ios::in | ios::out | ostream::binary);
+			hashIO.open("Students.hash", ios::in | ios::out | ios::binary);
 			
 			hashIO.seekp(0);
 			int firstHashTablePrefix = 0;
@@ -53,10 +53,10 @@ class StuAndProFileStruct {
 			hashIO.write((char*)(&firstHashTablePrefix), sizeof(firstHashTablePrefix));
 			hashIO.write((char*)(&hashPointBlockNum), sizeof(hashPointBlockNum));
 			
-			DBIO_temp.open("Student.DB", ios::out | ostream::binary);
+			DBIO_temp.open("Student.DB", ios::out | ios::binary);
 			DBIO_temp.close();
 			
-			DBIO.open("Student.DB", ios::in | ios::out | ostream::binary);
+			DBIO.open("Student.DB", ios::in | ios::out | ios::binary);
 			
 		}
 		
@@ -499,7 +499,7 @@ class StuAndProFileStruct {
 			for(int i = 0; i < 4096; i += 32) {
 				char isNull;
 				DBIO.clear();
-				DBIO.seekg(i + 4096 * 31);
+				DBIO.seekg(i + 4096 * 1);
 				DBIO.read((char*)(&isNull), sizeof(isNull));
 				//cout << isNull << "구분자";
 				
@@ -511,11 +511,11 @@ class StuAndProFileStruct {
 				count ++;
 				
 				DBIO.clear();
-				DBIO.seekg(i);
-				//DBIO.read((char*)(&tempOneStudData.name), sizeof(tempOneStudData.name));
-				//DBIO.read((char*)(&tempOneStudData.studentID), sizeof(tempOneStudData.studentID));
-				//DBIO.read((char*)(&tempOneStudData.score), sizeof(tempOneStudData.score));
-				//DBIO.read((char*)(&tempOneStudData.advisorID), sizeof(tempOneStudData.advisorID));
+				DBIO.seekg(i + 4096 * 1);
+				DBIO.read((char*)(&tempOneStudData.name), sizeof(tempOneStudData.name));
+				DBIO.read((char*)(&tempOneStudData.studentID), sizeof(tempOneStudData.studentID));
+				DBIO.read((char*)(&tempOneStudData.score), sizeof(tempOneStudData.score));
+				DBIO.read((char*)(&tempOneStudData.advisorID), sizeof(tempOneStudData.advisorID));
 				
 				int useHashingPrefix;
 				
@@ -523,11 +523,11 @@ class StuAndProFileStruct {
 				hashIO.seekg(0);
 				hashIO.read((char*)(&useHashingPrefix), sizeof(useHashingPrefix));
 				
-				//cout << findHashValue(tempOneStudData.studentID, useHashingPrefix) << " ";
-				//cout << tempOneStudData.name << " ";
-				//cout <<tempOneStudData.studentID << " ";
-				//cout << tempOneStudData.score << " ";
-				//cout << tempOneStudData.advisorID << "\n";
+				cout << findHashValue(tempOneStudData.studentID, useHashingPrefix) << " ";
+				cout << tempOneStudData.name << " ";
+				cout <<tempOneStudData.studentID << " ";
+				cout << tempOneStudData.score << " ";
+				cout << tempOneStudData.advisorID << "\n";
 			}*/
 		}
 		
@@ -954,9 +954,215 @@ class StuAndProFileStruct {
 			}*/
 		}
 		
-		/*void readQueryFile() {
+		void readQueryFile() {
 			
-		}*/
+			int howManyQuery;
+			string whatQuery; //Search-Exact, Search-Range, Join 
+			
+			ifstream queryPickFile("query.csv");
+		
+			string tmp_howManyQuery;
+			getline(queryPickFile, tmp_howManyQuery, '\n');
+			howManyQuery = atoi(tmp_howManyQuery.c_str());
+			
+			//cout << howManyQuery << endl;
+			cout << "------------start query --------------------\n";
+			for(int i = 0; i < howManyQuery; i++) {
+				getline(queryPickFile, whatQuery,',');
+				string tableName, fieldName, temp_ID, temp_lowScore, temp_highScore;
+				string joinTable1, joinTable2;
+				unsigned int ID;
+				int lowScore, highScore;
+				//cout << whatQuery << " ";
+				if(whatQuery.compare("Search-Exact") == 0) {
+					getline(queryPickFile, tableName,',');
+					getline(queryPickFile, fieldName,',');
+					getline(queryPickFile, temp_ID,'\n');
+					ID = atoi(temp_ID.c_str());
+					
+					//cout << tableName << " " << fieldName << " " << ID << endl;
+					if((tableName.compare("Professors") == 0 && fieldName.compare("ProfID") == 0) || (tableName.compare("Students") == 0 && fieldName.compare("StudentID") == 0)) {
+						exactQuery(tableName, ID);
+					} else {
+						cout << "wrong input query \n";
+					}
+					
+				} else if(whatQuery.compare("Search-Range") == 0) {
+					getline(queryPickFile, tableName,',');
+					getline(queryPickFile, fieldName,',');
+					getline(queryPickFile, temp_lowScore,',');
+					getline(queryPickFile, temp_highScore,'\n');
+					lowScore = atof(temp_lowScore.c_str());
+					highScore = atof(temp_highScore.c_str());
+					
+					//cout << tableName << " " << fieldName << " " << lowScore << " " << highScore << endl;
+					rangeQuery();
+					
+				} else if(whatQuery.compare("Join") == 0) {
+					getline(queryPickFile, joinTable1,',');
+					getline(queryPickFile, joinTable2,',');
+					
+					//cout << joinTable1 << " " << joinTable2 << endl;
+					doJoin();
+				} else {
+					cout << "not in query statement\n";
+				}
+			}
+			
+			queryPickFile.close();
+
+		}
+		
+		void exactQuery(string tableName, unsigned int ID) {
+			if(tableName.compare("Professors") == 0) {
+				searchProfExactID(ID);
+			} else {
+				searchStudExactID(ID);
+			}
+		}
+		
+		void searchProfExactID(unsigned int ID) {
+			ifstream hashIO_query;
+			ifstream DBIO_query;
+			
+			hashIO_query.open("Professors.hash", ios::in | ios::binary);
+			DBIO_query.open("Professors.DB", ios::in | ios::binary);
+			
+			int useHashingPrefix;
+			int hasingValue;
+			int blockLocation;
+			
+			hashIO_query.clear();
+			hashIO_query.seekg(0);
+			hashIO_query.read((char*)(&useHashingPrefix), sizeof(useHashingPrefix));
+			
+			hasingValue = findHashValue(ID, useHashingPrefix);
+			
+			hashIO_query.clear();
+			hashIO_query.seekg(4 + 4 * hasingValue);
+			hashIO_query.read((char*)(&blockLocation), sizeof(blockLocation));
+			//cout << useHashingPrefix << " "<< blockLocation << endl;
+			char isNull;
+			unsigned int pointingID;
+			int thisDataLocation;
+			bool isExist = false;
+			
+			for(int i = 0; i < 4096; i += 28) {
+				DBIO_query.clear();
+				DBIO_query.seekg((blockLocation * 4096) + i);
+				DBIO_query.read((char*)(&isNull), sizeof(isNull));
+				
+				if(isNull == NULL || DBIO_query.tellg() == -1) {
+					break;
+				}
+				
+				DBIO_query.clear();
+				DBIO_query.seekg((blockLocation * 4096) + i + 20);
+				DBIO_query.read((char*)(&pointingID), sizeof(pointingID));
+				//cout << pointingID << " ";
+				if(pointingID == ID) {
+					//cout << pointingID;
+					isExist = true;
+					char name[20];
+					unsigned int profID;
+					int salary;
+					
+					DBIO_query.clear();
+					DBIO_query.seekg((blockLocation * 4096) + i);
+					DBIO_query.read((char*)(&name), sizeof(name));
+					DBIO_query.read((char*)(&profID), sizeof(profID));
+					DBIO_query.read((char*)(&salary), sizeof(salary));
+					
+					cout << "Search-Exact Professor " <<  ID << " : " << name << " " << profID << " " << salary << endl;
+					
+					break;
+				}
+			}
+			
+			if(isExist == false) {
+				cout << "Search-Exact Professor " << ID << " is not exist" << endl;
+			}
+			
+			hashIO_query.close();
+			DBIO_query.close();
+		}
+		
+		void searchStudExactID(unsigned int ID) {
+			ifstream hashIO_query;
+			ifstream DBIO_query;
+			
+			hashIO_query.open("Students.hash", ios::in | ios::binary);
+			DBIO_query.open("Student.DB", ios::in | ios::binary);
+			
+			int useHashingPrefix;
+			int hasingValue;
+			int blockLocation;
+			
+			hashIO_query.clear();
+			hashIO_query.seekg(0);
+			hashIO_query.read((char*)(&useHashingPrefix), sizeof(useHashingPrefix));
+			
+			hasingValue = findHashValue(ID, useHashingPrefix);
+			
+			hashIO_query.clear();
+			hashIO_query.seekg(4 + 4 * hasingValue);
+			hashIO_query.read((char*)(&blockLocation), sizeof(blockLocation));
+			//cout << useHashingPrefix << " "<< blockLocation << endl;
+			char isNull;
+			unsigned int pointingID;
+			int thisDataLocation;
+			bool isExist = false;
+			
+			for(int i = 0; i < 4096; i += 32) {
+				DBIO_query.clear();
+				DBIO_query.seekg((blockLocation * 4096) + i);
+				DBIO_query.read((char*)(&isNull), sizeof(isNull));
+				
+				if(isNull == NULL || DBIO_query.tellg() == -1) {
+					break;
+				}
+				
+				DBIO_query.clear();
+				DBIO_query.seekg((blockLocation * 4096) + i + 20);
+				DBIO_query.read((char*)(&pointingID), sizeof(pointingID));
+				//cout << pointingID << " ";
+				if(pointingID == ID) {
+					//cout << pointingID;
+					isExist = true;
+					char name[20];
+					unsigned int studentID;
+					float score;
+					unsigned int advisorID;
+					
+					DBIO_query.clear();
+					DBIO_query.seekg((blockLocation * 4096) + i);
+					DBIO_query.read((char*)(&name), sizeof(name));
+					DBIO_query.read((char*)(&studentID), sizeof(studentID));
+					DBIO_query.read((char*)(&score), sizeof(score));
+					DBIO_query.read((char*)(&advisorID), sizeof(advisorID));
+					
+					cout << "Search-Exact Student " <<  ID << " : " << name << " " << studentID << " " << score << " " << advisorID << endl;
+					
+					break;
+				}
+			}
+			
+			if(isExist == false) {
+				cout << "Search-Exact Student " << ID << " is not exist" << endl;
+			}
+			
+			hashIO_query.close();
+			DBIO_query.close();
+		}
+		
+		//block*block or hash사용? 
+		void doJoin() {
+			
+		}
+		
+		void rangeQuery() {
+			
+		}
 		
 };
 
@@ -966,9 +1172,11 @@ int main(int argc, char** argv) {
 	stuAndProFS.readStudTableAndUpdateFile();
 	stuAndProFS.fileHashAndDBOpenPro();
 	stuAndProFS.readProTableAndUpdateFile();
-	//stuAndProFS.readQueryFile();
 	
 	//일단 query파일을 불러와서 조건에 따라 함수수행 .. match / range/ join
+	stuAndProFS.readQueryFile();
+	
+	
 	 
 	return 0;
 }

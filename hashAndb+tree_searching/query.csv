@@ -1,0 +1,8 @@
+7,,,,
+Search-Exact,Professors,ProfID,8873,
+Search-Exact,Professors,ProfID,2030498,
+Search-Exact,Students,StudentID,201212987,
+Search-Exact,Students,StudentID,301233423,
+Search-Range,Professors,Salary,106038,110021
+Search-Range,Students,Score,3,4
+Join,Professors,Students,,
