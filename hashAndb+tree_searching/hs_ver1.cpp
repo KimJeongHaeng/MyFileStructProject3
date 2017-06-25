@@ -36,6 +36,8 @@ class StuAndProFileStruct {
 		fstream DBIOPro;
 		vector <ProfessorData> tempProfessorDatas;
 		
+		
+		
 	public:
 		void fileHashAndDBOpen() {
 			
@@ -1002,8 +1004,10 @@ class StuAndProFileStruct {
 					getline(queryPickFile, joinTable1,',');
 					getline(queryPickFile, joinTable2,',');
 					
-					//cout << joinTable1 << " " << joinTable2 << endl;
-					doJoin();
+					if(joinTable1.compare("Professors") == 0 && joinTable2.compare("Students") == 0) {
+						doJoin();
+					}
+				
 				} else {
 					cout << "not in query statement\n";
 				}
@@ -1155,8 +1159,107 @@ class StuAndProFileStruct {
 			DBIO_query.close();
 		}
 		
-		//block*block or hash사용? 
+		//block*block outerloof가 작은거 사용 -> outer:professor, inner:student 
 		void doJoin() {
+			ifstream pro_DBIO_query;
+			ifstream stu_DBIO_query;
+			
+			ofstream join_query;
+			
+			pro_DBIO_query.open("Professors.DB", ios::in | ios::binary);
+			stu_DBIO_query.open("Student.DB", ios::in | ios::binary);
+			
+			join_query.open("query.res", ios::out | ios::binary);
+			
+			//outer professor, inner student -> student의 advisorID와 professor의 ID가같으면 query.res에 저장
+			vector <ProfessorData> tempProBlock;
+			vector <StudentData> tempStudBlock;
+			
+			ProfessorData tempOneProfessor;
+			StudentData tempOneStudent;
+			
+			char isProNull;
+			char isStudNull;
+			int proBlockLocation = 0;
+			int studBlockLocation = 0;
+			
+			while (true) {
+				for(int i = 0; i < 4096; i += 28) {
+					pro_DBIO_query.clear();
+					pro_DBIO_query.seekg((proBlockLocation * 4096) + i);
+					pro_DBIO_query.read((char*)(&isProNull), sizeof(isProNull));
+				
+					if(isProNull == NULL || pro_DBIO_query.tellg() == -1) {
+						break;
+					}
+										
+					pro_DBIO_query.clear();
+					pro_DBIO_query.seekg((proBlockLocation * 4096) + i);
+					pro_DBIO_query.read((char*)(&tempOneProfessor.name), sizeof(tempOneProfessor.name));
+					pro_DBIO_query.read((char*)(&tempOneProfessor.profID), sizeof(tempOneProfessor.profID));
+					pro_DBIO_query.read((char*)(&tempOneProfessor.salary), sizeof(tempOneProfessor.salary));
+					tempProBlock.push_back(tempOneProfessor);
+					//cout << tempOneProfessor.profID;
+				}
+				
+				proBlockLocation ++;
+				if(pro_DBIO_query.tellg() == -1) {
+					break;
+				}
+				int i = 0;
+				while (true) {
+					
+					for(int j = 0; j < 4096; j += 32) {
+						stu_DBIO_query.clear();
+						stu_DBIO_query.seekg((studBlockLocation * 4096) + j);
+						stu_DBIO_query.read((char*)(&isStudNull), sizeof(isStudNull));
+						
+						if(isStudNull == NULL || stu_DBIO_query.tellg() == -1) {
+							break;
+						}
+						
+						stu_DBIO_query.clear();
+						stu_DBIO_query.seekg((studBlockLocation * 4096) + j);
+						stu_DBIO_query.read((char*)(&tempOneStudent.name), sizeof(tempOneStudent.name));
+						stu_DBIO_query.read((char*)(&tempOneStudent.studentID), sizeof(tempOneStudent.studentID));
+						stu_DBIO_query.read((char*)(&tempOneStudent.score), sizeof(tempOneStudent.score));
+						stu_DBIO_query.read((char*)(&tempOneStudent.advisorID), sizeof(tempOneStudent.advisorID));			
+						tempStudBlock.push_back(tempOneStudent);
+						//cout << tempOneStudent.advisorID << " ";
+
+					}
+					
+					//block*block join시작 - 순서는 studname, studID, score, advisorID, professorname, salary 
+					for(int proBlock = 0; proBlock < tempProBlock.size(); proBlock++) {
+						for(int studBlock = 0; studBlock < tempStudBlock.size(); studBlock++) {
+							//cout << "do?";
+							if(tempProBlock[proBlock].profID == tempStudBlock[studBlock].advisorID) {
+								//cout << "loof";
+								join_query.write((char*)(&tempStudBlock[studBlock].name), sizeof(tempStudBlock[studBlock].name));
+								join_query.write((char*)(&tempStudBlock[studBlock].studentID), sizeof(tempStudBlock[studBlock].studentID));
+								join_query.write((char*)(&tempStudBlock[studBlock].score), sizeof(tempStudBlock[studBlock].score));
+								join_query.write((char*)(&tempStudBlock[studBlock].advisorID), sizeof(tempStudBlock[studBlock].advisorID));
+								join_query.write((char*)(&tempProBlock[proBlock].name), sizeof(tempProBlock[proBlock].name));
+								join_query.write((char*)(&tempProBlock[proBlock].salary), sizeof(tempProBlock[proBlock].salary));
+							}
+						}
+					}
+					
+					studBlockLocation ++;
+					tempStudBlock.clear();
+
+					if(stu_DBIO_query.tellg() == -1) {
+						break;
+					}
+				}
+				studBlockLocation = 0;
+				
+				tempProBlock.clear();
+			}
+			
+			pro_DBIO_query.close();
+			stu_DBIO_query.close();
+			join_query.close();
 			
 		}
 		
