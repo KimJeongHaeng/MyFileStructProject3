@@ -60,7 +60,7 @@ class StuAndProFileStruct {
 		fstream hashIOPro;
 		fstream DBIOPro;
 		vector <ProfessorData> tempProfessorDatas;
-		
+		//int testNum = 0;
 		//이위로 새로짜는 코드 
 		
 		Bptree studentTree;
@@ -335,7 +335,7 @@ class StuAndProFileStruct {
 			//cout << finalBlockNum;
 			makeHashTableDouble();
 			
-			reallocateBlocks(currentStudData, thisBlockNumber, finalBlockNum);
+			reallocateBlocksMulti(currentStudData, thisBlockNumber, finalBlockNum);
 			reallocateHashTable(currentStudData, thisBlockNumber, finalBlockNum);
 			
 			
@@ -399,69 +399,6 @@ class StuAndProFileStruct {
 			}
 			
 			return finalBlockNum; 
-		}
-		
-		void reallocateBlocks(StudentData currentStudData, int thisBlockNumber, int finalBlockNum) {
-			StudentData tempOneStudData;
-			//StudentData emptyStudData;
-			char isNull;
-			char tempNullChar[20] = {NULL};
-			unsigned int tempNullInt = NULL;
-			float tempNullFloat = NULL;
-			
-			for(int i = 0; i < 4096; i += sizeof(currentStudData)) {
-			//for(int i = 0; i < 4096; i ++) {
-				DBIO.clear();
-				DBIO.seekg((thisBlockNumber * 4096) + i);
-				DBIO.read((char*)(&isNull), sizeof(isNull));
-				
-				if(isNull == NULL || DBIO.tellg() == -1) {
-					break;
-				}
-				
-				DBIO.clear();
-				DBIO.seekg((thisBlockNumber * 4096) + i);
-				DBIO.read((char*)(&tempOneStudData.name), sizeof(tempOneStudData.name));
-				DBIO.read((char*)(&tempOneStudData.studentID), sizeof(tempOneStudData.studentID));
-				DBIO.read((char*)(&tempOneStudData.score), sizeof(tempOneStudData.score));
-				DBIO.read((char*)(&tempOneStudData.advisorID), sizeof(tempOneStudData.advisorID));
-				tempStudentDatas.push_back(tempOneStudData);
-				
-				DBIO.clear();
-				DBIO.seekp(thisBlockNumber * 4096 + i);
-				//cout << currentStudData.name << " ";
-				DBIO.write((char*)(&tempNullChar), sizeof(tempNullChar));
-				DBIO.write((char*)(&tempNullInt), sizeof(tempNullInt));
-				DBIO.write((char*)(&tempNullFloat), sizeof(tempNullFloat));
-				DBIO.write((char*)(&tempNullInt), sizeof(tempNullInt));
-				
-			}			
-			
-			int useHashingPrefix;
-			hashIO.clear();
-			hashIO.seekg(0);
-			hashIO.read((char*)(&useHashingPrefix), sizeof(useHashingPrefix));
-			
-			int beforeHashValue = findHashValue(currentStudData.studentID, useHashingPrefix - 1);
-			
-			for(int i = 0; i < tempStudentDatas.size(); i ++) {
-				int newHashValue = findHashValue(tempStudentDatas[i].studentID, useHashingPrefix);
-				if(newHashValue == beforeHashValue) {
-					inputData(tempStudentDatas[i], thisBlockNumber);
-				} else {
-					inputData(tempStudentDatas[i], finalBlockNum + 1);
-				}
-			}
-			
-			tempStudentDatas.clear();
-			
-			int thisHashValue = findHashValue(currentStudData.studentID, useHashingPrefix);
-			if(thisHashValue == beforeHashValue) {
-				inputData(currentStudData, thisBlockNumber);
-			} else {
-				inputData(currentStudData, finalBlockNum + 1);
-			}
-				
 		}
 		
 		void reallocateHashTable(StudentData currentStudData, int thisBlockNumber, int finalBlockNum) {
@@ -606,7 +543,7 @@ class StuAndProFileStruct {
 			hashIO.seekg(0);
 			hashIO.read((char*)(&useHashingPrefix), sizeof(useHashingPrefix));
 			int howManyHashBlock = calculatePow(useHashingPrefix);
-			cout << "-----hashtable-----" << endl;
+			cout << "-----Student hashtable-----" << endl;
 			cout << "hashTablePrefix :" << useHashingPrefix << endl;
 			int tempHashTableNum;
 		
@@ -650,6 +587,446 @@ class StuAndProFileStruct {
 				//cout <<tempOneStudData.studentID << " ";
 				//cout << tempOneStudData.score << " ";
 				//cout << tempOneStudData.advisorID << "\n";
+			}*/
+		}
+		
+		//이위로는 학생 이 아래로는 교수 data부분-------------------------------------------------------------------------------------------------------- 
+		
+		void fileHashAndDBOpenPro() {
+			
+			ofstream hashIOPro_temp;
+			ofstream DBIOPro_temp;
+			
+			hashIOPro_temp.open("Professors.hash", ios::out | ostream::binary);
+			hashIOPro_temp.close();
+				
+			hashIOPro.open("Professors.hash", ios::in | ios::out | ostream::binary);
+			
+			hashIOPro.seekp(0);
+			int firstHashTablePrefix = 0;
+			int hashPointBlockNum = 0;
+			hashIOPro.write((char*)(&firstHashTablePrefix), sizeof(firstHashTablePrefix));
+			hashIOPro.write((char*)(&hashPointBlockNum), sizeof(hashPointBlockNum));
+			
+			DBIOPro_temp.open("Professors.DB", ios::out | ostream::binary);
+			DBIOPro_temp.close();
+			
+			DBIOPro.open("Professors.DB", ios::in | ios::out | ostream::binary);
+			
+		}
+		
+		void readProTableAndUpdateFile() { //자료들을 한줄씩 읽음 
+			ifstream readProFile("prof_data.csv");
+			//input student number by using getline
+			string tmp_professorNum;
+			getline(readProFile, tmp_professorNum, '\n');
+			professorNum = atoi(tmp_professorNum.c_str());
+			
+			ProfessorData currentProData;
+			int useHashingValue;
+			int useHashingPrefix;
+			int thisBlockNumber;
+			//input all studentData by using getline
+			
+			string tmp_name, tmp_profID, tmp_salary;
+			while(getline(readProFile, tmp_name,',')&&getline(readProFile, tmp_profID,',')&&getline(readProFile,tmp_salary,'\n')) {
+				strcpy(currentProData.name,tmp_name.c_str());
+				if(tmp_name.length() >= 20) {
+					string tmp_re_name = tmp_name.substr(0, 19);
+					strcpy(currentProData.name,tmp_re_name.c_str());
+				}
+				currentProData.profID = atoi(tmp_profID.c_str());
+				currentProData.salary = atoi(tmp_salary.c_str());
+				
+				hashIOPro.clear();
+				hashIOPro.seekg(0);
+				hashIOPro.read((char*)(&useHashingPrefix), sizeof(useHashingPrefix));
+			
+				//useHashingPrefix = useHashingPrefix;
+				
+				useHashingValue = findHashValue(currentProData.profID, useHashingPrefix);
+				thisBlockNumber = findBlockNumberPro(useHashingValue);
+				
+				inputDataInDBPro(currentProData, thisBlockNumber);
+				//cout << useHashingValue << " ";
+				//studentTree.insertItem(studentsData+dataLocate);
+				//cout << studentsData[dataLocate].name << "," << studentsData[dataLocate].studentID << "," << studentsData[dataLocate].score << "," << studentsData[dataLocate].advisorID << endl;
+				
+			}
+			hashTablePrintPro();
+			
+			readProFile.close();
+			hashIOPro.close();
+			DBIOPro.close();
+			
+		}
+		
+		int findBlockNumberPro(int useHashingValue) {
+			int thisBlockNumber = 0;
+			
+			if(useHashingValue == -1) {
+				useHashingValue == 0;
+			}
+			hashIOPro.clear();
+			hashIOPro.seekg(4 + (4 * useHashingValue));
+			hashIOPro.read((char*)(&thisBlockNumber), sizeof(thisBlockNumber));
+			//cout << thisBlockNumber;
+			return thisBlockNumber;
+		}
+		
+		void inputDataInDBPro(ProfessorData currentProData, int thisBlockNumber) {
+			//cout << currentStudData.name << " ";
+			//cout << sizeof(currentStudData) << " ";
+			bool isOverflow = overflowCheckPro(thisBlockNumber, sizeof(currentProData));
+			
+			if(!isOverflow) {
+				inputDataPro(currentProData, thisBlockNumber);
+				//cout << testNum << " ";
+				//testNum++;
+			} else {
+				//testNum = 0;
+				solutionOverflowPro(currentProData, thisBlockNumber);
+			}
+		}
+		
+		bool overflowCheckPro(int thisBlockNumber, int dataSize) {
+			
+			bool isOverflow = true;
+			
+			char isNull;
+			DBIOPro.clear();
+			DBIOPro.seekg((thisBlockNumber + 1) * 4096 - dataSize - 8);
+			
+			DBIOPro.read((char*)(&isNull), sizeof(isNull));
+			
+			if(isNull == NULL || DBIOPro.tellg() == -1) {
+				isOverflow = false;
+			}
+			/*for(int i = 0; i < 4096; i += dataSize) {
+				hashIO.read((char*)(&isNull), sizeof(isNull));
+				if(isNull == NULL) {
+					isOverflow = true;
+					break;
+				}
+			}*/
+			
+			return isOverflow;
+		}
+		
+		void inputDataPro(ProfessorData currentProData, int thisBlockNumber) {			
+			char isNull;
+			int inputLocation;
+			
+			for(int i = 0; i < 4096; i += sizeof(currentProData)) {
+				DBIOPro.clear();
+				DBIOPro.seekg((thisBlockNumber * 4096) + i);
+				DBIOPro.read((char*)(&isNull), sizeof(isNull));
+				
+				
+				if(isNull == NULL || DBIOPro.tellg() == -1) {
+					inputLocation = i;
+					//cout << i << " ";
+					break;
+				}
+			}
+			
+			DBIOPro.clear();
+			DBIOPro.seekp(thisBlockNumber * 4096 + inputLocation);
+			//cout << currentStudData.name << " ";
+			DBIOPro.write((char*)(&currentProData.name), sizeof(currentProData.name));
+			DBIOPro.write((char*)(&currentProData.profID), sizeof(currentProData.profID));
+			DBIOPro.write((char*)(&currentProData.salary), sizeof(currentProData.salary));
+			
+		}
+		
+		void solutionOverflowPro(ProfessorData currentProData, int thisBlockNumber) {
+			//hashtable에서 현재 blocknumber와 같은것 찾음 - 함수만들기 
+			int blockPointCount = findBlockPointCountPro(thisBlockNumber);
+			//cout << blockPointCount << " ";
+			//1개면 hashtable을 두배로 늘린뒤 데이터를 다 들고와서 hashPrefix재설정후(prefix1증가) 
+			//block을 하나 더 만들어서 재분배시킨뒤에 hashtable의 값을 block에 따라 바꿔주고
+			//다시 넣을 곳의 block의 overflow를 확인후(재귀호출) 현재 데이터 삽입
+			if(blockPointCount == 1) {
+				reallocationOnePointPro(currentProData, thisBlockNumber); 
+				//cout << "onepointover" <<endl; 
+			} else {
+				//2개, 4개, 8개 ...면 hashtable을 나눌 필요없이 hashPrefix를 적절히 보고  block을 늘릴 필요없이 데이터를 다 들고와서
+				//재분배시킨뒤에 hashtable의 값을 block에 따라 바꿔주고
+				//다시 넣을 곳의 block의 overflow확인후 (재귀호출 이때는 point가 한개가 될수있음) 현재 데이터 삽입 
+				reallocationMultiPointPro(currentProData, thisBlockNumber);
+				//cout << blockPointCount << "multipoint over" << endl;
+			}
+			
+			
+		}
+		
+		int findBlockPointCountPro(int thisBlockNumber) {
+			int blockPointCount = 0;
+			int useHashingPrefix;
+			
+			hashIOPro.clear();
+			hashIOPro.seekg(0);
+			hashIOPro.read((char*)(&useHashingPrefix), sizeof(useHashingPrefix));
+			
+			//useHasingPrefix가 2의 지수승번으로  검사하면됨 
+			int tempBlockNum;
+			int howManyHashBlock = calculatePow(useHashingPrefix);
+			for(int i = 0; i < howManyHashBlock; i++) {
+				hashIOPro.read((char*)(&tempBlockNum), sizeof(tempBlockNum));
+				if(tempBlockNum == thisBlockNumber) {
+					blockPointCount++;
+				}
+			}
+			
+			return blockPointCount;
+		}
+		
+		void reallocationOnePointPro(ProfessorData currentProData, int thisBlockNumber) {
+			//1개면 hashtable을 두배로 늘린뒤 데이터를 다 들고와서 hashPrefix재설정후(prefix1증가) 
+			//block을 하나 더 만들어서(실재로 더 만들 필요는 없음 맨끝4k에 추가 관련 함수 필요) 재분배시킨뒤에 hashtable의 값을 block에 따라 바꿔주고
+			//다시 넣을 곳의 block의 overflow를 확인후(재귀호출) 현재 데이터 삽입
+			int finalBlockNum;
+			finalBlockNum = findFinalBlockNumPro();
+			//cout << finalBlockNum;
+			makeHashTableDoublePro();
+			
+			reallocateBlocksMultiPro(currentProData, thisBlockNumber, finalBlockNum);
+			reallocateHashTablePro(currentProData, thisBlockNumber, finalBlockNum);
+			
+			
+		}
+		
+		void makeHashTableDoublePro() {
+			int beforeUseHashingPrefix;
+			int afterUseHasingPrefix;
+			vector <int> tempHashTable;
+			
+			hashIOPro.clear();
+			hashIOPro.seekg(0);
+			hashIOPro.read((char*)(&beforeUseHashingPrefix), sizeof(beforeUseHashingPrefix));
+			
+			int howManyHashBlock = calculatePow(beforeUseHashingPrefix);
+			
+			int tempHashTableNum;
+			for(int i = 0; i < howManyHashBlock; i++) {
+				hashIOPro.read((char*)(&tempHashTableNum), sizeof(tempHashTableNum));
+				tempHashTable.push_back(tempHashTableNum);
+			}
+			
+			hashIOPro.clear();
+			hashIOPro.seekp(4 + howManyHashBlock * 4);
+			for(int i = 0; i < howManyHashBlock; i++) {
+				hashIOPro.write((char*)(&tempHashTable[i]), sizeof(tempHashTable[i]));
+			}
+			
+			hashIOPro.clear();
+			afterUseHasingPrefix = beforeUseHashingPrefix + 1;
+			hashIOPro.seekp(0);
+			hashIOPro.write((char*)(&afterUseHasingPrefix), sizeof(afterUseHasingPrefix));
+		
+			
+			
+		}
+		
+		int findFinalBlockNumPro() {
+			int finalBlockNum = 0;
+			int useHashingPrefix;
+			
+			hashIOPro.clear();
+			hashIOPro.seekg(0);
+			hashIOPro.read((char*)(&useHashingPrefix), sizeof(useHashingPrefix));
+			
+			int howManyHashBlock = calculatePow(useHashingPrefix);
+			
+			int tempHashTableNum;
+			for(int i = 0; i < howManyHashBlock; i++) {
+				hashIOPro.read((char*)(&tempHashTableNum), sizeof(tempHashTableNum));
+				if(finalBlockNum < tempHashTableNum) {
+					finalBlockNum = tempHashTableNum;
+				}
+			}
+			//cout << "마지막 block : " << finalBlockNum << endl;
+			return finalBlockNum; 
+		}
+		
+		
+		void reallocateHashTablePro(ProfessorData currentProData, int thisBlockNumber, int finalBlockNum) {
+			int useHashingPrefix;
+			int increaseFinalBlockNum = finalBlockNum + 1;
+			vector <int> tempChangeHashTable;
+			hashIOPro.clear();
+			hashIOPro.seekg(0);
+			hashIOPro.read((char*)(&useHashingPrefix), sizeof(useHashingPrefix));
+			int howManyHashBlock = calculatePow(useHashingPrefix);
+			
+			int tempHashTableNum;
+			int changeHashPointNum = 0;
+			int count = 0;
+			for(int i = 0; i < howManyHashBlock; i++) {
+				hashIOPro.read((char*)(&tempHashTableNum), sizeof(tempHashTableNum));
+				if(thisBlockNumber == tempHashTableNum) {
+					count++;
+					if(changeHashPointNum == 0) {
+						changeHashPointNum = 1;
+					} else {
+						tempChangeHashTable.push_back(i);
+						changeHashPointNum = 0;
+					}
+					
+				}
+			}
+			//cout << "현재 pointer갯수" << count << endl;
+			for(int i = 0; i < tempChangeHashTable.size(); i++) {
+				hashIOPro.clear();
+				hashIOPro.seekp(4 + tempChangeHashTable[i] * 4);
+				hashIOPro.write((char*)(&increaseFinalBlockNum), sizeof(increaseFinalBlockNum));
+			}
+			
+			//testPrint();
+			//cout << "test \n";
+			
+			
+		}
+		
+		void reallocationMultiPointPro(ProfessorData currentProData, int thisBlockNumber) {
+			//2개, 4개, 8개 ...면 hashtable을 나눌 필요없이 hashPrefix를 적절히 보고  block을 늘릴 필요없이 데이터를 다 들고와서
+			//재분배시킨뒤에 hashtable의 값을 block에 따라 바꿔주고
+			//다시 넣을 곳의 block의 overflow확인후 (재귀호출 이때는 point가 한개가 될수있음) 현재 데이터 삽입
+			
+			int finalBlockNum;
+			finalBlockNum = findFinalBlockNumPro();
+			//cout << finalBlockNum;
+			
+			
+			reallocateBlocksMultiPro(currentProData, thisBlockNumber, finalBlockNum);
+			reallocateHashTablePro(currentProData, thisBlockNumber, finalBlockNum);
+			
+			
+		}
+		
+		void reallocateBlocksMultiPro(ProfessorData currentProData, int thisBlockNumber, int finalBlockNum) {
+			ProfessorData tempOneProData;
+			//StudentData emptyStudData;
+			char isNull;
+			char tempNullChar[20] = {NULL};
+			unsigned int tempNullInt = NULL;
+			int tempNullInt_sign = NULL;
+			
+			
+			for(int i = 0; i < 4096; i += sizeof(currentProData)) {
+			//for(int i = 0; i < 4096; i ++) {
+				DBIOPro.clear();
+				DBIOPro.seekg((thisBlockNumber * 4096) + i);
+				DBIOPro.read((char*)(&isNull), sizeof(isNull));
+				//cout << isNull << "구분자";
+				
+				if(isNull == NULL || DBIOPro.tellg() == -1) {
+					break;
+				}
+				
+				DBIOPro.clear();
+				DBIOPro.seekg((thisBlockNumber * 4096) + i);
+				DBIOPro.read((char*)(&tempOneProData.name), sizeof(tempOneProData.name));
+				DBIOPro.read((char*)(&tempOneProData.profID), sizeof(tempOneProData.profID));
+				DBIOPro.read((char*)(&tempOneProData.salary), sizeof(tempOneProData.salary));
+				tempProfessorDatas.push_back(tempOneProData);
+				
+				DBIOPro.clear();
+				DBIOPro.seekp(thisBlockNumber * 4096 + i);
+				//cout << currentStudData.name << " ";
+				DBIOPro.write((char*)(&tempNullChar), sizeof(tempNullChar));
+				DBIOPro.write((char*)(&tempNullInt), sizeof(tempNullInt));
+				DBIOPro.write((char*)(&tempNullInt_sign), sizeof(tempNullInt_sign));
+				
+			}
+			
+			int useHashingPrefix;
+			hashIOPro.clear();
+			hashIOPro.seekg(0);
+			hashIOPro.read((char*)(&useHashingPrefix), sizeof(useHashingPrefix));
+			
+			int blockPointCount = findBlockPointCountPro(thisBlockNumber);
+			//cout << "포인터겠수" <<blockPointCount << endl;
+			int forRealusedPrefix = -1; //포인터의 개수가 1개면 안빼고 2개면 1빼고 4개면 2빼고 ... 
+			while(blockPointCount != 1) {
+				forRealusedPrefix ++;
+				blockPointCount = blockPointCount/2;
+				
+			}
+			
+			int beforeHashValue = findHashValue(currentProData.profID, useHashingPrefix - 1 - forRealusedPrefix);
+			
+			for(int i = 0; i < tempProfessorDatas.size(); i ++) {
+				int newHashValue = findHashValue(tempProfessorDatas[i].profID, useHashingPrefix - forRealusedPrefix);
+				if(newHashValue == beforeHashValue) {
+					inputDataPro(tempProfessorDatas[i], thisBlockNumber);
+				} else {
+					inputDataPro(tempProfessorDatas[i], finalBlockNum + 1);
+				}
+			}
+			
+			tempProfessorDatas.clear();
+			
+			int thisHashValue = findHashValue(currentProData.profID, useHashingPrefix - forRealusedPrefix);
+			if(thisHashValue == beforeHashValue) {
+				inputDataPro(currentProData, thisBlockNumber);
+			} else {
+				inputDataPro(currentProData, finalBlockNum + 1);
+			}
+				
+		}
+		
+		
+		
+		void hashTablePrintPro() {
+			int useHashingPrefix;
+			
+			hashIOPro.clear();
+			hashIOPro.seekg(0);
+			hashIOPro.read((char*)(&useHashingPrefix), sizeof(useHashingPrefix));
+			int howManyHashBlock = calculatePow(useHashingPrefix);
+			cout << "-----Professor hashtable-----" << endl;
+			cout << "hashTablePrefix :" << useHashingPrefix << endl;
+			int tempHashTableNum;
+		
+			for(int i = 0; i < howManyHashBlock; i++) {
+				hashIOPro.read((char*)(&tempHashTableNum), sizeof(tempHashTableNum));
+				cout << tempHashTableNum << endl;
+			}
+			
+			cout << "-----hashtableEnd-----" << endl;
+			
+			/*int count = 0;
+			for(int i = 0; i < 4096; i += 28) {
+				char isNull;
+				DBIOPro.clear();
+				DBIOPro.seekg(i + 4096 * 1);
+				DBIOPro.read((char*)(&isNull), sizeof(isNull));
+				//cout << isNull << "구분자";
+				
+				if(isNull == NULL || DBIOPro.tellg() == -1) {
+					break;
+				}
+				ProfessorData tempOneProData;
+				cout << count << " ";
+				count ++;
+				
+				DBIOPro.clear();
+				DBIOPro.seekg(i + 4096 * 1);
+				DBIOPro.read((char*)(&tempOneProData.name), sizeof(tempOneProData.name));
+				DBIOPro.read((char*)(&tempOneProData.profID), sizeof(tempOneProData.profID));
+				DBIOPro.read((char*)(&tempOneProData.salary), sizeof(tempOneProData.salary));
+				
+				int useHashingPrefix;
+				
+				hashIOPro.clear();
+				hashIOPro.seekg(0);
+				hashIOPro.read((char*)(&useHashingPrefix), sizeof(useHashingPrefix));
+				
+				cout << findHashValue(tempOneProData.profID, useHashingPrefix) << " ";
+				cout << tempOneProData.name << " ";
+				cout <<tempOneProData.profID << " ";
+				cout << tempOneProData.salary << "\n";
 			}*/
 		}
 		
@@ -911,6 +1288,11 @@ int main(int argc, char** argv) {
 	StuAndProFileStruct stuAndProFS;
 	stuAndProFS.fileHashAndDBOpen();
 	stuAndProFS.readStudTableAndUpdateFile();
+	stuAndProFS.fileHashAndDBOpenPro();
+	stuAndProFS.readProTableAndUpdateFile();
+	
+	//일단 query파일을 불러와서 조건에 따라 함수수행 .. match / range/ join
+	 
 	/*studentsFS.make_B_plusTree();
 	studentsFS.kthNodePrint();
 	studentsFS.idxOut();*/
