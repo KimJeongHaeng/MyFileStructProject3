@@ -147,6 +147,7 @@ int* BplusTree::search(float k)
 
 void BplusTree::rangeSearch(float k,float l)
 {
+	
 	int path, j;//from
 	node* p = root;
 
@@ -1341,8 +1342,13 @@ class StuAndProFileStruct {
 					lowScore = atof(temp_lowScore.c_str());
 					highScore = atof(temp_highScore.c_str());
 					
+					if((tableName.compare("Professors") == 0 && fieldName.compare("Salary") == 0) || (tableName.compare("Students") == 0 && fieldName.compare("Score") == 0)) {
+						rangeQuery(tableName, lowScore, highScore);
+					} else {
+						cout << "wrong input query \n";
+					}
+					
 					//cout << tableName << " " << fieldName << " " << lowScore << " " << highScore << endl;
-					rangeQuery();
 					
 				} else if(whatQuery.compare("Join") == 0) {
 					getline(queryPickFile, joinTable1,',');
@@ -1513,7 +1519,7 @@ class StuAndProFileStruct {
 			pro_DBIO_query.open("Professors.DB", ios::in | ios::binary);
 			stu_DBIO_query.open("Student.DB", ios::in | ios::binary);
 			
-			join_query.open("query.res", ios::out | ios::binary);
+			join_query.open("query2.res", ios::out | ios::binary);
 			
 			//outer professor, inner student -> student의 advisorID와 professor의 ID가같으면 query.res에 저장
 			vector <ProfessorData> tempProBlock;
@@ -1607,8 +1613,27 @@ class StuAndProFileStruct {
 			
 		}
 		
-		void rangeQuery() {
+		void rangeQuery(string tableName, int lowScore, int highScore) {
+			if(tableName.compare("Professors") == 0) {
+				searchProfRange(lowScore, highScore);
+			} else {
+				searchStudRange(lowScore, highScore);
+			}
 			
+			
+			
+		}
+		
+		void searchProfRange(int lowScore, int highScore) {
+			
+		}
+		
+		void searchStudRange(int lowScore, int highScore) {
+			
+			//range_query.open("query.res", ios::out | ios::binary);
+			bpt->rangeSearch(lowScore, highScore);
+			
+			//range_query.close();
 		}
 		
 };
@@ -1623,7 +1648,7 @@ int main(int argc, char** argv) {
 	bpt = new BplusTree();
 	bpt->makeStudentB();
  	
-	bpt->rangeSearch(1.9,2.5);
+	
 	stuAndProFS.readQueryFile();
 	delete bpt;
 	
