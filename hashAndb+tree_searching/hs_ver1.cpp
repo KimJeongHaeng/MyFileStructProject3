@@ -9,6 +9,11 @@
 
 using namespace std;
 /* run this program using the console pauser or add your own getch, system("pause") or input loop */
+#define M 3  // 홀수 차수 생성 
+#define MAX 500	// 큐의 크기
+#define TR 500 // 스택의 크기
+
+
 
 //student's dataStruct
 typedef struct InputData {
@@ -23,6 +28,345 @@ typedef struct InputProData {
 	unsigned int profID;
 	int salary;
 }ProfessorData;
+
+typedef struct Node
+{
+	int count;		// 노드에 저장된 Key의 수, 인덱스 노드와 리프노드 구별 플래그	
+	float Key[M-1][2];			 // Key 
+	struct Node* branch[M];  // 주소 
+} node;
+
+class BplusTree{
+	private:
+		node* root;		// root를 가리키는 노드 
+		//node* queue[MAX];	// 큐를 가르치는 노드
+		int front, rear;  
+		int findcnt;		// 검색 경로 수 
+		vector<int> blockBound;
+		ifstream fi;
+		int dataCount;
+		
+	public:
+		BplusTree(){
+			root = NULL;
+			dataCount = 0;
+		}
+		void makeStudentB();
+		int* search(float k);		// Key를 탐색하는 함수 
+		void rangeSearch(float k,float l);	// 순차탐색(리프노드) 출력  함수 
+		int* insertItem(float k);		// Key 삽입 함수
+
+		void insertkey();	// Key 삽입 메뉴 함수
+		void findkey();		// Key 검색 메뉴 함수
+};
+
+void BplusTree::makeStudentB(){
+	fi.open("Student.DB", ifstream::binary); 
+  	if (!fi) { 
+    	cerr << "idx open failed.." << endl;
+    	exit(1);
+  	}
+  	float b;
+  	
+  	int i = 0;
+  	int j = 0;
+  	int k = 0;
+  	while(!fi.eof()){
+  		fi.seekg((j*4096)+24 + (i * 32));
+  		fi.read((char*)&b,sizeof(float));
+  		if(b == 0){
+  			j++;
+  			i = 0;
+  			blockBound.push_back(k-1);
+  			//cout << (j*4096)+24 + (i * 32) << endl;
+		}
+		else{
+			insertItem(b);
+			//cout << (j*4096)+24 + (i * 32) << endl;
+			k++;
+			if((j*4096)+24 + (i * 32)+32 >= 4096*(j+1)){
+				j++;
+				blockBound.push_back(k-1);
+				i = 0;
+			}
+			else{
+				i++;
+			}
+		}	
+	}
+	fi.clear();
+}
+
+void BplusTree::insertkey()
+{
+	int Key;
+	scanf("%d",&Key);
+	insertItem(Key);
+	
+}
+
+
+int* BplusTree::search(float k)
+{
+	node* p = root;
+	int path;
+	if (p == NULL)
+		return NULL;
+	while (1)	// p가 leaf노드일때까지 탐색
+	{	
+		int j;
+		for (j=0; j<p->count%M; j++)	// 한 노드에서 경로를 결정
+		{
+			if (p->Key[j][0] >= k)
+			{
+				path = j;
+				break;
+			}
+		}
+		if (j == p->count%M)
+			path = p->count%M;
+	
+		if (p->count/M != 1)
+		{	
+			findcnt++;
+		}
+
+		if (p->count/M == 1)
+				break;
+	
+		p = p->branch[j];
+		
+	}				
+	if (p->Key[path][0] == k && p->count%M != path)
+	{
+		return (int*)p->branch[path+1];
+	}
+	else 
+		return NULL;
+}
+
+void BplusTree::rangeSearch(float k,float l)
+{
+	int path, j;//from
+	node* p = root;
+
+	int path_2, j_2;//to
+	node* p_2 = root;
+
+	if (p != NULL)
+	{	
+		while (true)	// p가 leaf노드 일때까지 탐색
+		{
+			//int j;
+			for (j=0; j<p->count%M; j++)	// 한 노드에서 경로를 결정
+			{	
+				if (p->Key[j][0] >= k)
+				{
+					path = j;
+					break;
+				}
+			}
+			if (j == p->count%M)
+				path = p->count%M;
+			if (p->count/M == 1)
+				break;
+			p = p->branch[j];
+		}
+		if (p->Key[path][0] == k || k == 0)	// k가 0이면 minimum부터 다 출력한다. 
+		{
+			bool end = false;
+			int* s = search(l+0.1);
+			while (p != NULL)
+			{
+				for (j=0; j<p->count%M; j++)
+				{
+					int bc = *(int*)p->branch[j+1];
+					
+					if(bc == *s){
+					//	cout << bc << " " << bc_2 << endl;
+						end = true;
+						break;
+					}
+					int bb;
+					//float c;
+					int c;
+					for(bb = 0; bb < blockBound.size(); bb++){
+						if(bc <= blockBound[bb]){
+							break;
+						}
+					}
+					fi.clear();
+					if(bb == 0){
+						fi.seekg(bb*4096 + 24 + (bc)*32-4,ios::beg);
+						//cout << bb*4096 + 24 + (bc)*32 << endl;
+					}
+					else{
+						fi.seekg(bb*4096 + 24 + (bc-blockBound[bb-1]-1)*32-4,ios::beg);
+						//cout << bb*4096 + 24 + (bc-blockBound[bb-1]-1)*32 << endl;
+					}
+					fi.read((char*)&c,sizeof(int));
+					cout << c << " \n ";
+				}
+				if(end){
+					break;
+				}
+				p = p->branch[0];
+			}
+		}
+	}
+}
+
+
+
+int* BplusTree::insertItem(float k)
+{
+	int loc = dataCount;
+	node* trace[TR];	// 삽입될 경로를 저장할 스택용도의 배열
+	int dir[TR];
+	float Key;
+	int  i;				
+
+	node* upRight, *p;
+	int* insertFileLocation = new int;
+	*insertFileLocation = loc;
+	upRight = (node*)insertFileLocation;
+	i = 0;	// trace[]의 index
+
+	p = root;	// p를 가지고 삽입될 위치를 탐색
+	
+	//*(int*)upRight = k;
+
+//	printf("check");
+			
+	if (root == NULL)
+	{
+		root = (node*)malloc(sizeof(node));
+		root->branch[0] = NULL;
+		root->Key[0][0] = k;
+		root->Key[0][1] = loc;
+		root->branch[1] = (node*)insertFileLocation;
+		root->count = M + 1;
+		dataCount++;
+		return insertFileLocation;
+	}
+
+	while (1)	// p가 leaf노드 일때까지 탐색
+	{
+		int j;
+		trace[i] = p;
+		for (j=0; j<p->count%M; j++)	// 한 노드에서 경로를 결정
+			if (p->Key[j][0] >= k)
+			{
+				dir[i] = j;
+				break;
+			}
+		if (j == p->count%M)
+			dir[i] = p->count%M;
+		if (p->count/M == 1)
+			break;
+		p = p->branch[j];
+		i++;
+	}						// 이 루프에서 나오면 p는 Key값이 삽일될 노드. 
+
+	
+	// 이제 본격적인 삽입을 시작. 
+	Key = k;
+	while (i != -1)
+	{
+		int path = dir[i];
+		p = trace[i];
+		if (p->count%M != M-1)	// 삽입해도 overflow가 생기지 않으면
+		{
+			int m;
+			for (m=p->count%M; m>path; m--)	// 삽입될 칸부터 끝까지 한칸씩 뒤로. 
+			{
+				p->Key[m][0] = p->Key[m-1][0];
+				p->Key[m][1] = p->Key[m-1][1];
+				p->branch[m+1] = p->branch[m];
+			}
+			p->Key[path][0] = Key;		// Key값을 삽입
+			p->Key[path][1] = loc;
+			p->branch[path+1] = upRight;	// branch를 관리. 
+			p->count++;
+			break;
+		}
+	
+		else	// 삽입하면 overflow가 생기는 경우
+		{
+			float nodeKey[M][2];
+			node* nodeBranch[M+1];
+			node* newNode;
+			int j, j2;
+			newNode = new node();
+			
+			nodeBranch[0] = p->branch[0];
+			for (j=0, j2=0; j<M; j++, j2++)		// 임시로 크기 M+1인 노드에 순서대로 복사. 
+			{
+				if (j == path)
+				{
+					nodeKey[j][0] = Key;
+					nodeKey[j][1] = loc;
+					nodeBranch[j+1] = upRight;
+					j++;
+					if (j>=M) 
+						break;
+				}
+				nodeKey[j][0] = p->Key[j2][0];
+				nodeKey[j][1] = p->Key[j2][1];
+				nodeBranch[j+1] = p->branch[j2+1];
+			}
+			for (j=0; j<M/2; j++)
+			{
+				p->Key[j][0] = nodeKey[j][0];
+				p->Key[j][1] = nodeKey[j][1];
+				p->branch[j+1] = nodeBranch[j+1];
+			}
+			newNode->branch[0] = nodeBranch[M/2+1];
+			for (j=0; j<M/2; j++)	// 가운데 Key 다음부터는 새로생긴 노드에 복사한다. 
+			{
+				newNode->Key[j][0] = nodeKey[M/2+1+j][0];
+				newNode->Key[j][1] = nodeKey[M/2+1+j][1];
+				newNode->branch[j+1] = nodeBranch[M/2+2+j];
+			}
+
+			// 만약에 p가 리프노드이면 약간의 수정
+			if (p->count/M == 1)
+			{
+				newNode->branch[0] = p->branch[0];	// sequencial pointer 관리
+				p->branch[0] = newNode;
+				p->Key[M/2][0] = nodeKey[M/2][0];		// 올릴 Key값을 리프노드에도 남김. 
+				p->Key[M/2][1] = nodeKey[M/2][1];
+				p->branch[M/2+1] = nodeBranch[M/2+1];
+				p->count = M + M/2 + 1;
+				newNode->count = M + M/2;
+			}
+			else
+			{
+				p->count = newNode->count = M/2;
+				p->branch[0] = nodeBranch[0];
+			}
+
+			Key = nodeKey[M/2][0];	// 가운데 Key를 올리는 Key로 한다. 
+			loc = nodeKey[M/2][1];
+			upRight = newNode;	// 새로 만든 node를 올리는 값의 오른쪽 자식으로 
+		}
+		i--;
+	}
+	if (i == -1)	// root에서 overflow가 생겼을 경우
+	{
+		root = (node*)malloc(sizeof(node));
+		root->count = 1;
+		root->branch[0] = trace[0];
+		root->branch[1] = upRight;
+		root->Key[0][0] = Key;
+		root->Key[0][1] = loc;
+	}
+
+	dataCount++;
+	return insertFileLocation;
+}
+
+BplusTree *bpt;
 
 class StuAndProFileStruct {
 	private:
@@ -1276,8 +1620,15 @@ int main(int argc, char** argv) {
 	stuAndProFS.fileHashAndDBOpenPro();
 	stuAndProFS.readProTableAndUpdateFile();
 	
-	//일단 query파일을 불러와서 조건에 따라 함수수행 .. match / range/ join
+	bpt = new BplusTree();
+	bpt->makeStudentB();
+ 	
+	bpt->rangeSearch(1.9,2.5);
 	stuAndProFS.readQueryFile();
+	delete bpt;
+	
+	//일단 query파일을 불러와서 조건에 따라 함수수행 .. match / range/ join
+	
 	
 	
 	 
