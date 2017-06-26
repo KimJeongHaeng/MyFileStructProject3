@@ -130,9 +130,12 @@ int* BplusTree::search(float k)
 
 void BplusTree::rangeSearch(float k,float l)
 {
+	ofstream range_query;
+	range_query.open("query.res", ios::out | ios::binary);
+	
 	int path, j;//from
 	node* p = root;
-
+	
 	int path_2, j_2;//to
 	node* p_2 = root;
 
@@ -187,6 +190,10 @@ void BplusTree::rangeSearch(float k,float l)
 						fi.read((char*)&id,sizeof(int));
 						fi.read((char*)&score,sizeof(float));
 						fi.read((char*)&aId,sizeof(int));
+						range_query.write((char*)(&name), sizeof(name));
+						range_query.write((char*)(&id), sizeof(id));
+						range_query.write((char*)(&score), sizeof(score));
+						range_query.write((char*)(&aId), sizeof(aId));
 						cout << name << " " << id << " " << score << " " << aId << endl;
 					}
 					else{
@@ -195,6 +202,10 @@ void BplusTree::rangeSearch(float k,float l)
 						fi.read((char*)&id,sizeof(int));
 						fi.read((char*)&score,sizeof(float));
 						fi.read((char*)&aId,sizeof(int));
+						range_query.write((char*)(&name), sizeof(name));
+						range_query.write((char*)(&id), sizeof(id));
+						range_query.write((char*)(&score), sizeof(score));
+						range_query.write((char*)(&aId), sizeof(aId));
 						cout << name << " " << id << " " << score << " " << aId << endl;
 						//cout << name << endl; 
 					}
@@ -208,6 +219,7 @@ void BplusTree::rangeSearch(float k,float l)
 			}
 		}
 	}
+	range_query.close();
 }
 
 
@@ -1306,10 +1318,11 @@ class StuAndProFileStruct {
 			cout << "------------start query --------------------\n";
 			for(int i = 0; i < howManyQuery; i++) {
 				getline(queryPickFile, whatQuery,',');
-				string tableName, fieldName, temp_ID, temp_lowScore, temp_highScore;
+				string tableName, fieldName, temp_ID, temp_lowScore, temp_highScore, temp_lowSalary, temp_highSalary ;
 				string joinTable1, joinTable2;
 				unsigned int ID;
-				int lowScore, highScore;
+				float lowScore, highScore;
+				int lowSalary, highSalary;
 				//cout << whatQuery << " ";
 				if(whatQuery.compare("Search-Exact") == 0) {
 					getline(queryPickFile, tableName,',');
@@ -1327,15 +1340,22 @@ class StuAndProFileStruct {
 				} else if(whatQuery.compare("Search-Range") == 0) {
 					getline(queryPickFile, tableName,',');
 					getline(queryPickFile, fieldName,',');
-					getline(queryPickFile, temp_lowScore,',');
-					getline(queryPickFile, temp_highScore,'\n');
-					lowScore = atof(temp_lowScore.c_str());
-					highScore = atof(temp_highScore.c_str());
-					
-					if((tableName.compare("Professors") == 0 && fieldName.compare("Salary") == 0) || (tableName.compare("Students") == 0 && fieldName.compare("Score") == 0)) {
-						rangeQuery(tableName, lowScore, highScore);
-					} else {
-						cout << "wrong input query \n";
+					if(tableName.compare("Professors") == 0 && fieldName.compare("Salary") == 0) {
+						getline(queryPickFile, temp_lowScore,',');
+						getline(queryPickFile, temp_highScore,'\n');
+						lowSalary = atoi(temp_lowSalary.c_str());
+						highSalary = atoi(temp_highSalary.c_str());
+						
+						searchProfRange(lowSalary, highSalary);
+					}
+						
+					if(tableName.compare("Students") == 0 && fieldName.compare("Score") == 0){
+						getline(queryPickFile, temp_lowScore,',');
+						getline(queryPickFile, temp_highScore,'\n');
+						lowScore = atof(temp_lowScore.c_str());
+						highScore = atof(temp_highScore.c_str());
+						
+						searchStudRange(lowScore, highScore);
 					}
 					
 					//cout << tableName << " " << fieldName << " " << lowScore << " " << highScore << endl;
@@ -1574,13 +1594,14 @@ class StuAndProFileStruct {
 						for(int studBlock = 0; studBlock < tempStudBlock.size(); studBlock++) {
 							//cout << "do?";
 							if(tempProBlock[proBlock].profID == tempStudBlock[studBlock].advisorID) {
-								//cout << "loof";
+								
 								join_query.write((char*)(&tempStudBlock[studBlock].name), sizeof(tempStudBlock[studBlock].name));
 								join_query.write((char*)(&tempStudBlock[studBlock].studentID), sizeof(tempStudBlock[studBlock].studentID));
 								join_query.write((char*)(&tempStudBlock[studBlock].score), sizeof(tempStudBlock[studBlock].score));
 								join_query.write((char*)(&tempStudBlock[studBlock].advisorID), sizeof(tempStudBlock[studBlock].advisorID));
 								join_query.write((char*)(&tempProBlock[proBlock].name), sizeof(tempProBlock[proBlock].name));
 								join_query.write((char*)(&tempProBlock[proBlock].salary), sizeof(tempProBlock[proBlock].salary));
+								//cout << "joinstu" << tempStudBlock[studBlock].name << endl;
 							}
 						}
 					}
@@ -1603,22 +1624,11 @@ class StuAndProFileStruct {
 			
 		}
 		
-		void rangeQuery(string tableName, int lowScore, int highScore) {
-			if(tableName.compare("Professors") == 0) {
-				searchProfRange(lowScore, highScore);
-			} else {
-				searchStudRange(lowScore, highScore);
-			}
-			
-			
+		void searchProfRange(int lowSalary, int highSalary) {
 			
 		}
 		
-		void searchProfRange(int lowScore, int highScore) {
-			
-		}
-		
-		void searchStudRange(int lowScore, int highScore) {
+		void searchStudRange(float lowScore, float highScore) {
 			
 			//range_query.open("query.res", ios::out | ios::binary);
 			bpt->rangeSearch(lowScore, highScore);
