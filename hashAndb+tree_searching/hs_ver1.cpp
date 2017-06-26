@@ -161,7 +161,7 @@ void BplusTree::rangeSearch(float k,float l)
 		if (p->Key[path][0] == k || k == 0)	// k가 0이면 minimum부터 다 출력한다. 
 		{
 			bool end = false;
-			int* s = search(l+0.1);
+			int* s = search(l+0.00001);
 			while (p != NULL)
 			{
 				for (j=0; j<p->count%M; j++)
@@ -410,7 +410,7 @@ class StuAndProFileStruct {
 		}
 		
 		void readStudTableAndUpdateFile() { //자료들을 한줄씩 읽음 
-			ifstream readStudFile("sampleData.csv");
+			ifstream readStudFile("student_data.csv");
 			//input student number by using getline
 			string tmp_studentNum;
 			getline(readStudFile, tmp_studentNum, '\n');
@@ -1366,6 +1366,15 @@ class StuAndProFileStruct {
 					
 					if(joinTable1.compare("Professors") == 0 && joinTable2.compare("Students") == 0) {
 						doJoin();
+						/*ifstream join_query;
+						join_query.open("query2.res", ios::in | ios::binary);
+						join_query.seekg(0);
+						char name2[20];
+						int id;
+						join_query.read((char*)(&name2), sizeof(name2));
+						join_query.read((char*)(&id), sizeof(id));
+						cout << name2 << " " << id;
+						join_query.close();*/
 					}
 				
 				} else {
@@ -1640,10 +1649,10 @@ class StuAndProFileStruct {
 
 int main(int argc, char** argv) {
 	StuAndProFileStruct stuAndProFS;
-	stuAndProFS.fileHashAndDBOpen();
-	stuAndProFS.readStudTableAndUpdateFile();
-	stuAndProFS.fileHashAndDBOpenPro();
-	stuAndProFS.readProTableAndUpdateFile();
+	//stuAndProFS.fileHashAndDBOpen();
+	//stuAndProFS.readStudTableAndUpdateFile();
+	//stuAndProFS.fileHashAndDBOpenPro();
+	//stuAndProFS.readProTableAndUpdateFile();
 	
 	bpt = new BplusTree();
 	bpt->makeStudentB();
