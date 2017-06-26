@@ -38,10 +38,7 @@ typedef struct Node
 
 class BplusTree{
 	private:
-		node* root;		// root를 가리키는 노드 
-		//node* queue[MAX];	// 큐를 가르치는 노드
-		int front, rear;  
-		int findcnt;		// 검색 경로 수 
+		node* root;		// root를 가리키는 노드
 		vector<int> blockBound;
 		ifstream fi;
 		int dataCount;
@@ -56,8 +53,6 @@ class BplusTree{
 		void rangeSearch(float k,float l);	// 순차탐색(리프노드) 출력  함수 
 		int* insertItem(float k);		// Key 삽입 함수
 
-		void insertkey();	// Key 삽입 메뉴 함수
-		void findkey();		// Key 검색 메뉴 함수
 };
 
 void BplusTree::makeStudentB(){
@@ -97,13 +92,6 @@ void BplusTree::makeStudentB(){
 	fi.clear();
 }
 
-void BplusTree::insertkey()
-{
-	int Key;
-	scanf("%d",&Key);
-	insertItem(Key);
-	
-}
 
 
 int* BplusTree::search(float k)
@@ -125,11 +113,6 @@ int* BplusTree::search(float k)
 		}
 		if (j == p->count%M)
 			path = p->count%M;
-	
-		if (p->count/M != 1)
-		{	
-			findcnt++;
-		}
 
 		if (p->count/M == 1)
 				break;
@@ -147,7 +130,6 @@ int* BplusTree::search(float k)
 
 void BplusTree::rangeSearch(float k,float l)
 {
-	
 	int path, j;//from
 	node* p = root;
 
@@ -189,8 +171,10 @@ void BplusTree::rangeSearch(float k,float l)
 						break;
 					}
 					int bb;
-					//float c;
-					int c;
+					char name[20];
+					int id;
+					float score;
+					int aId;
 					for(bb = 0; bb < blockBound.size(); bb++){
 						if(bc <= blockBound[bb]){
 							break;
@@ -198,15 +182,24 @@ void BplusTree::rangeSearch(float k,float l)
 					}
 					fi.clear();
 					if(bb == 0){
-						fi.seekg(bb*4096 + 24 + (bc)*32-4,ios::beg);
-						//cout << bb*4096 + 24 + (bc)*32 << endl;
+						fi.seekg(bb*4096 + (bc)*32,ios::beg);
+						fi.read((char*)(&name),sizeof(name));
+						fi.read((char*)&id,sizeof(int));
+						fi.read((char*)&score,sizeof(float));
+						fi.read((char*)&aId,sizeof(int));
+						cout << name << " " << id << " " << score << " " << aId << endl;
 					}
 					else{
-						fi.seekg(bb*4096 + 24 + (bc-blockBound[bb-1]-1)*32-4,ios::beg);
-						//cout << bb*4096 + 24 + (bc-blockBound[bb-1]-1)*32 << endl;
+						fi.seekg(bb*4096 + (bc-blockBound[bb-1]-1)*32,ios::beg);
+						fi.read((char*)(&name),sizeof(name));
+						fi.read((char*)&id,sizeof(int));
+						fi.read((char*)&score,sizeof(float));
+						fi.read((char*)&aId,sizeof(int));
+						cout << name << " " << id << " " << score << " " << aId << endl;
+						//cout << name << endl; 
 					}
-					fi.read((char*)&c,sizeof(int));
-					cout << c << " \n ";
+					//fi.read((char*)&c,sizeof(int));
+					//cout << c << " \n ";
 				}
 				if(end){
 					break;
@@ -234,14 +227,11 @@ int* BplusTree::insertItem(float k)
 	i = 0;	// trace[]의 index
 
 	p = root;	// p를 가지고 삽입될 위치를 탐색
-	
-	//*(int*)upRight = k;
 
-//	printf("check");
 			
 	if (root == NULL)
 	{
-		root = (node*)malloc(sizeof(node));
+		root = new node();
 		root->branch[0] = NULL;
 		root->Key[0][0] = k;
 		root->Key[0][1] = loc;
@@ -355,7 +345,7 @@ int* BplusTree::insertItem(float k)
 	}
 	if (i == -1)	// root에서 overflow가 생겼을 경우
 	{
-		root = (node*)malloc(sizeof(node));
+		root = new node();
 		root->count = 1;
 		root->branch[0] = trace[0];
 		root->branch[1] = upRight;
